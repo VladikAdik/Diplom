@@ -1,12 +1,15 @@
 import { useState, useRef } from 'react';
 import Konva from 'konva';
-import { Stage, Layer, Image as KonvaImage, Rect, Text } from 'react-konva';
+import { Stage, Layer, Rect, Text } from 'react-konva';
 
-export function ImageUploader() {
-  const [image, setImage] = useState<HTMLImageElement | null>(null)
+interface ImageUploaderProps {
+    onImageLoad: (image: HTMLImageElement) => void;  // Передаёт изображение родителю
+    onImageRemove?: () => void;
+}
+
+export function ImageUploader({ onImageLoad }: ImageUploaderProps) {
   const [isDragOver, setIsDragOver] = useState(false)
   const stageRef = useRef<Konva.Stage>(null)
-  const imageRef = useRef<Konva.Image>(null)
 
   // Загрузка изображения из файла
   const loadImage = (file: File) => {
@@ -16,7 +19,7 @@ export function ImageUploader() {
     reader.onload = (e) => {
       const img = new window.Image()
       img.onload = () => {
-        setImage(img)
+        onImageLoad(img)
       }
       img.src = e.target?.result as string 
     }
@@ -24,11 +27,7 @@ export function ImageUploader() {
   }
 
   // Обработка клика по области
-  const handleStageClick = (e: Konva.KonvaEventObject<MouseEvent>) => {
-    // Игнорируем клик, если кликнули по уже загруженному изображению
-    if (e.target === imageRef.current) return
-    
-    // Создаем скрытый input и имитируем клик
+  const handleStageClick = () => {
     const input = document.createElement('input')
     input.type = 'file'
     input.accept = 'image/*'
@@ -66,12 +65,6 @@ export function ImageUploader() {
   const stageSizeWidth = 900
   const stageSizeheight = 500
   return (
-    <div style={{ 
-      display: 'flex', 
-      justifyContent: 'center', 
-      alignItems: 'center',
-      background: '#f0f0f0' 
-    }}>
       <div
         onDragOver={handleDragOver}
         onDragLeave={handleDragLeave}
@@ -103,13 +96,9 @@ export function ImageUploader() {
               width={stageSizeWidth}
               height={stageSizeheight}
               fill={isDragOver ? '#e8f5e9' : '#fafafa'}
-              stroke={isDragOver ? '#4CAF50' : '#ddd'}
-              strokeWidth={2}
             />
             
-            {/* Текст-подсказка */}
-            {!image &&
-              <Text
+            <Text
                 text={'📸 Нажмите или перетащите изображение сюда'}
                 fontSize={18}
                 fontFamily="Arial"
@@ -118,46 +107,9 @@ export function ImageUploader() {
                 verticalAlign="middle"
                 width={stageSizeWidth}
                 height={stageSizeheight}
-              />
-            }
-
-            {/* Отображаем изображение */}
-            {image && <KonvaImage
-                ref={imageRef}
-                image={image}
-                onClick={(e) => {
-                  e.cancelBubble = true;
-                }}
-              />
-            }
+            />
           </Layer>
         </Stage>
-        
-        {/* Кнопка для сброса изображения (опционально) */}
-        {image && (
-          <div style={{
-            position: 'absolute',
-            top: '10px',
-            right: '10px',
-            zIndex: 100
-          }}>
-            <button
-              onClick={() => setImage(null)}
-              style={{
-                padding: '5px 10px',
-                background: '#f44336',
-                color: 'white',
-                border: 'none',
-                borderRadius: '5px',
-                cursor: 'pointer',
-                fontSize: '12px'
-              }}
-            >
-              ✕ Удалить
-            </button>
-          </div>
-        )}
       </div>
-    </div>
   );
 }

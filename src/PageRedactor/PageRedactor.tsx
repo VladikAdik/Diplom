@@ -5,12 +5,19 @@ import { Header } from "./ui/Header"
 import { Workspace } from "./ui/Workspace";
 import { useState } from "react";
 
-export function RedactorPage() {
+interface PageRedactorProps {
+    image: HTMLImageElement | null;
+}
+
+export function PageRedactor({ image }: PageRedactorProps) {
     const [previewUrl, setPreviewUrl] = useState<string>('');
 
     return <div>
         <Header/>
-        <Workspace onUpdate={setPreviewUrl}/>
+        <Workspace 
+            image={image}
+            onUpdate={setPreviewUrl}
+        />
         <SidebarTools/>
         <SidebarLayers/>
         {previewUrl && <SidebarSummary imageUrl={previewUrl}/>}

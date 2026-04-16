@@ -1,17 +1,18 @@
-import { Start } from "./PageStart/main";
-import { RedactorPage } from "./PageRedactor/main";
+import { PageStart } from "./PageStart/PageStart";
+import { PageRedactor } from "./PageRedactor/PageRedactor";
 import { useState } from "react";
 
 export function App() {
+  const [image, setImage] = useState<HTMLImageElement | null>(null);
   const [currentPage, setCurrentPage] = useState(1)
+
+  const handleImageLoad = (img: HTMLImageElement) => {
+        setImage(img)
+        setCurrentPage(2)
+  }
   
   return <div>
-      <nav>
-        <button onClick={() => setCurrentPage(1)}>Страница 1</button>
-        <button onClick={() => setCurrentPage(2)}>Страница 2</button>
-      </nav>
-
-      {currentPage === 1 && <Start />}
-      {currentPage === 2 && <RedactorPage />}
+      {currentPage === 1 && <PageStart onImageLoad={handleImageLoad}/>}
+      {currentPage === 2 && <PageRedactor image={image}/>}
     </div>
 }

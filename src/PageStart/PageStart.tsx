@@ -2,10 +2,15 @@ import { ImageGenerator } from "./ui/ImageGenerate";
 import { ImageUploader } from "./ui/ImageUpload";
 import { PanelDisclamer } from "./ui/PanelDisclamer";
 
-export function Start() {
+interface PageStartProps {
+    onImageLoad: (image: HTMLImageElement) => void;
+}
+
+export function PageStart({ onImageLoad }: PageStartProps) {
+
   return <div>
     <PanelDisclamer />
-    <ImageUploader />
+    <ImageUploader onImageLoad={onImageLoad}/>
     <ImageGenerator />
   </div>
 }
