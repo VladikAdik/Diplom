@@ -5,7 +5,7 @@ export function SidebarTools() {
 
     return <div style={{
                 position: 'absolute',
-                top: 100,
+                top: 40,
                 left: 20,
                 zIndex: 100,
                 background: 'white',

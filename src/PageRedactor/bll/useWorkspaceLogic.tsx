@@ -19,6 +19,33 @@ export function useWorkspaceLogic({ image, onUpdate }: WorkspaceLogicProps) {
         }
     }, [onUpdate]);
 
+    // Центрирование изображения при загрузке
+    useEffect(() => {
+        if (!image || !stageRef.current) return;
+        
+        const stageWidth = stageRef.current.width();
+        const stageHeight = stageRef.current.height();
+        
+        const initialScale = Math.min(
+            (stageWidth * 0.8) / image.width,
+            (stageHeight * 0.8) / image.height,
+            1
+        );
+        
+        const x = (stageWidth - image.width * initialScale) / 2;
+        const y = (stageHeight - image.height * initialScale) / 2;
+        
+        setScale(initialScale);
+        setPosition({ x, y });
+        
+        if (imageRef.current) {
+            imageRef.current.scale({ x: initialScale, y: initialScale });
+            imageRef.current.position({ x, y });
+            imageRef.current.getLayer()?.batchDraw();
+            updatePreview();
+        }
+    }, [image, updatePreview]);
+
     // Обработчик колесика мыши
     const handleWheel = useCallback((e: Konva.KonvaEventObject<WheelEvent>) => {
         e.evt.preventDefault();
@@ -31,7 +58,7 @@ export function useWorkspaceLogic({ image, onUpdate }: WorkspaceLogicProps) {
         
         if (!pointer) return;
         
-        const delta = e.evt.deltaY > 0 ? -0.05 : 0.05;
+        const delta = e.evt.deltaY > 0 ? -0.1 : 0.1;
         let newScale = oldScale + delta;
         newScale = Math.min(Math.max(newScale, 0.1), 5);
         
