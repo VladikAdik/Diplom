@@ -63,7 +63,7 @@ export function ImageUploader({ onImageLoad }: ImageUploaderProps) {
   }
 
   const stageSizeWidth = 900
-  const stageSizeheight = 500
+  const stageSizeHeight = 500
   return (
       <div
         onDragOver={handleDragOver}
@@ -80,7 +80,7 @@ export function ImageUploader({ onImageLoad }: ImageUploaderProps) {
         <Stage 
           ref={stageRef}
           width={stageSizeWidth} 
-          height={stageSizeheight} 
+          height={stageSizeHeight} 
           style={{ 
             background: '#fafafa', 
             borderRadius: '8px', 
@@ -94,7 +94,7 @@ export function ImageUploader({ onImageLoad }: ImageUploaderProps) {
               x={0}
               y={0}
               width={stageSizeWidth}
-              height={stageSizeheight}
+              height={stageSizeHeight}
               fill={isDragOver ? '#e8f5e9' : '#fafafa'}
             />
             
@@ -106,7 +106,7 @@ export function ImageUploader({ onImageLoad }: ImageUploaderProps) {
                 align="center"
                 verticalAlign="middle"
                 width={stageSizeWidth}
-                height={stageSizeheight}
+                height={stageSizeHeight}
             />
           </Layer>
         </Stage>

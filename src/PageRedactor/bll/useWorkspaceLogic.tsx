@@ -2,13 +2,11 @@ import { useRef, useEffect, useCallback, useState } from 'react';
 import Konva from 'konva';
 
 interface WorkspaceLogicProps {
-    image?: HTMLImageElement | null;
     onUpdate?: (url: string) => void;
 }
 
-export function useWorkspaceLogic({ image, onUpdate }: WorkspaceLogicProps) {
+export function useWorkspaceLogic({ onUpdate }: WorkspaceLogicProps) {
     const stageRef = useRef<Konva.Stage>(null);
-    const imageRef = useRef<Konva.Image>(null);
     const [scale, setScale] = useState(1);
     const [position, setPosition] = useState({ x: 0, y: 0 });
 
@@ -19,41 +17,14 @@ export function useWorkspaceLogic({ image, onUpdate }: WorkspaceLogicProps) {
         }
     }, [onUpdate]);
 
-    // Центрирование изображения при загрузке
-    useEffect(() => {
-        if (!image || !stageRef.current) return;
-        
-        const stageWidth = stageRef.current.width();
-        const stageHeight = stageRef.current.height();
-        
-        const initialScale = Math.min(
-            (stageWidth * 0.8) / image.width,
-            (stageHeight * 0.8) / image.height,
-            1
-        );
-        
-        const x = (stageWidth - image.width * initialScale) / 2;
-        const y = (stageHeight - image.height * initialScale) / 2;
-        
-        setScale(initialScale);
-        setPosition({ x, y });
-        
-        if (imageRef.current) {
-            imageRef.current.scale({ x: initialScale, y: initialScale });
-            imageRef.current.position({ x, y });
-            imageRef.current.getLayer()?.batchDraw();
-            updatePreview();
-        }
-    }, [image, updatePreview]);
-
-    // Обработчик колесика мыши
+    // Обработчик колесика мыши (зум всей сцены)
     const handleWheel = useCallback((e: Konva.KonvaEventObject<WheelEvent>) => {
         e.evt.preventDefault();
         
-        if (!stageRef.current || !imageRef.current) return;
-        
         const stage = stageRef.current;
-        const oldScale = scale;
+        if (!stage) return;
+        
+        const oldScale = stage.scaleX();
         const pointer = stage.getPointerPosition();
         
         if (!pointer) return;
@@ -64,9 +35,10 @@ export function useWorkspaceLogic({ image, onUpdate }: WorkspaceLogicProps) {
         
         if (newScale === oldScale) return;
         
+        // Зум относительно позиции мыши
         const mousePointTo = {
-            x: (pointer.x - position.x) / oldScale,
-            y: (pointer.y - position.y) / oldScale,
+            x: (pointer.x - stage.x()) / oldScale,
+            y: (pointer.y - stage.y()) / oldScale,
         };
         
         const newPosition = {
@@ -74,73 +46,58 @@ export function useWorkspaceLogic({ image, onUpdate }: WorkspaceLogicProps) {
             y: pointer.y - mousePointTo.y * newScale,
         };
         
+        stage.scale({ x: newScale, y: newScale });
+        stage.position(newPosition);
+        stage.batchDraw();
+        
         setScale(newScale);
         setPosition(newPosition);
         
-        imageRef.current.scale({ x: newScale, y: newScale });
-        imageRef.current.position(newPosition);
-        imageRef.current.getLayer()?.batchDraw();
-        
         updatePreview();
-    }, [scale, position, updatePreview]);
+    }, [updatePreview]);
 
     // Ресайз окна
     useEffect(() => {
         const handleResize = () => {
-            if (!stageRef.current || !image) return;
+            if (!stageRef.current) return;
             
             const stageWidth = window.innerWidth;
-            const stageHeight = window.innerHeight;
+            const stageHeight = window.innerHeight - 100;
             
             stageRef.current.width(stageWidth);
             stageRef.current.height(stageHeight);
-            
-            const newScale = Math.min(
-                (stageWidth * 0.8) / image.width,
-                (stageHeight * 0.8) / image.height,
-                1
-            );
-            
-            const x = (stageWidth - image.width * newScale) / 2;
-            const y = (stageHeight - image.height * newScale) / 2;
-            
-            setScale(newScale);
-            setPosition({ x, y });
-            
-            if (imageRef.current) {
-                imageRef.current.scale({ x: newScale, y: newScale });
-                imageRef.current.position({ x, y });
-                imageRef.current.getLayer()?.batchDraw();
-            }
+            stageRef.current.batchDraw();
             
             updatePreview();
         };
         
         window.addEventListener('resize', handleResize);
         return () => window.removeEventListener('resize', handleResize);
-    }, [image, updatePreview]);
+    }, [updatePreview]);
 
     useEffect(() => {
         updatePreview();
     }, [updatePreview]);
 
-    const handleDragEnd = useCallback((e: Konva.KonvaEventObject<DragEvent>) => {
-        setPosition(e.target.position());
+    // Сброс вида (центрировать всё)
+    const resetView = useCallback(() => {
+        if (!stageRef.current) return;
+        
+        stageRef.current.scale({ x: 1, y: 1 });
+        stageRef.current.position({ x: 0, y: 0 });
+        stageRef.current.batchDraw();
+        
+        setScale(1);
+        setPosition({ x: 0, y: 0 });
         updatePreview();
     }, [updatePreview]);
 
-    const handleDragMove = useCallback((e: Konva.KonvaEventObject<DragEvent>) => {
-        setPosition(e.target.position());
-    }, []);
-
     return {
         stageRef,
-        imageRef,
         scale,
         position,
         handleWheel,
-        handleDragEnd,
-        handleDragMove,
+        resetView,
         updatePreview
     };
 }
