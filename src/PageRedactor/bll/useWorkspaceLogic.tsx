@@ -53,8 +53,7 @@ export function useWorkspaceLogic({ onUpdate }: WorkspaceLogicProps) {
         setScale(newScale);
         setPosition(newPosition);
         
-        updatePreview();
-    }, [updatePreview]);
+    }, []);
 
     // Ресайз окна
     useEffect(() => {
@@ -68,16 +67,11 @@ export function useWorkspaceLogic({ onUpdate }: WorkspaceLogicProps) {
             stageRef.current.height(stageHeight);
             stageRef.current.batchDraw();
             
-            updatePreview();
         };
         
         window.addEventListener('resize', handleResize);
         return () => window.removeEventListener('resize', handleResize);
-    }, [updatePreview]);
-
-    useEffect(() => {
-        updatePreview();
-    }, [updatePreview]);
+    }, []);
 
     // Сброс вида (центрировать всё)
     const resetView = useCallback(() => {

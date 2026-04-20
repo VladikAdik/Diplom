@@ -11,4 +11,6 @@ export interface Layer {
     data: HTMLImageElement | Konva.ShapeConfig | Konva.TextConfig | null;
     x?: number;
     y?: number;
+    width?: number;
+    height?: number; 
 }

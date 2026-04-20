@@ -5,7 +5,7 @@ import type { Layer } from '../types/Layer';
 
 export function useLayers() {
     const [layers, setLayers] = useState<Layer[]>([]);
-    const [selectedLayerId, setSelectedLayerId] = useState<string | null>(null);
+    const [selectedLayerIds, setSelectedLayerIds] = useState<Set<string>>(new Set);
     const layerRefs = useRef<Map<string, Konva.Layer>>(new Map());
 
     // Генерация уникального ID
@@ -15,32 +15,61 @@ export function useLayers() {
 
     // Добавить слой
     const addLayer = useCallback((layer: Omit<Layer, 'id' | 'zIndex'>) => {
-        let newLayer: Layer | null = null;
-
+        const newLayer: Layer = {
+            ...layer,
+            id: generateId(),
+            zIndex: Date.now(),
+        };
+        
         setLayers(prev => {
-            newLayer = {
-                ...layer,
-                id: generateId(),
-                zIndex: prev.length,
-            };
-            return [...prev, newLayer];
+            // Сортируем по zIndex (новые сверху)
+            const updated = [...prev, newLayer];
+            return updated.sort((a, b) => b.zIndex - a.zIndex);
         });
-
-        return newLayer!;
+        
+        return newLayer;
     }, [generateId]);
 
     // Удалить слой
     const removeLayer = useCallback((id: string) => {
         setLayers(prev => prev.filter(l => l.id !== id));
-        
-        const layer = layerRefs.current.get(id);
-        layer?.destroy();
         layerRefs.current.delete(id);
         
-        if (selectedLayerId === id) {
-            setSelectedLayerId(null);
-        }
-    }, [selectedLayerId]);
+        setSelectedLayerIds(prev => {
+            const newSet = new Set(prev);
+            newSet.delete(id);
+            return newSet;
+        });
+    }, []);
+
+    const selectLayer = useCallback((id: string, multiSelect: boolean = false) => {
+        setSelectedLayerIds(prev => {
+            const newSet = new Set(prev);
+            
+            if (multiSelect) {
+                // Ctrl/Cmd + клик: добавляем/убираем слой
+                if (newSet.has(id)) {
+                    newSet.delete(id);
+                } else {
+                    newSet.add(id);
+                }
+            } else {
+                // Обычный клик: выделяем только этот слой
+                newSet.clear();
+                newSet.add(id);
+            }
+            
+            return newSet;
+        });
+    }, []);
+
+    const clearSelection = useCallback(() => {
+        setSelectedLayerIds(new Set());
+    }, []);
+
+    const selectAll = useCallback(() => {
+        setSelectedLayerIds(new Set(layers.map(l => l.id)));
+    }, [layers]);
 
     // Переключить видимость
     const toggleVisibility = useCallback((id: string) => {
@@ -49,12 +78,6 @@ export function useLayers() {
                 ? { ...layer, visible: !layer.visible }
                 : layer
         ));
-        
-        const layer = layerRefs.current.get(id);
-        if (layer) {
-            layer.visible(!layer.visible);
-            layer.getLayer()?.batchDraw();
-        }
     }, []);
 
     // Заблокировать/разблокировать
@@ -106,18 +129,27 @@ export function useLayers() {
     }, []);
 
     // Обновить позицию слоя (после перетаскивания)
-    const updateLayerPosition = useCallback((id: string, x: number, y: number) => {
+    const updateLayerPosition = useCallback((id: string, x: number, y: number, width?: number, height?: number) => {
         setLayers(prev => prev.map(layer =>
-            layer.id === id
-                ? { ...layer, x, y }
-                : layer
-        ));
+        layer.id === id
+            ? { 
+                ...layer, 
+                x, 
+                y,
+                ...(width !== undefined && { width }),
+                ...(height !== undefined && { height })
+              }
+            : layer
+    ));
     }, []);
 
     return {
         layers,
-        selectedLayerId,
-        setSelectedLayerId,
+        selectedLayerIds,
+        setSelectedLayerIds,
+        selectLayer,
+        clearSelection,
+        selectAll,  
         layerRefs,
         addLayer,
         removeLayer,

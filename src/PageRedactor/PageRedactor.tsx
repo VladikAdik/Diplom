@@ -2,7 +2,7 @@ import { SidebarLayers } from "./ui/SidebarLayers"
 import { SidebarSummary } from "./ui/SidebarSummary"
 import { SidebarTools } from "./ui/SidebarTools"
 import { Header } from "./ui/Header/Header"
-import { Workspace, type WorkspaceRef } from "./ui/Workspace"
+import { Workspace, type WorkspaceRef } from "./ui/Workspace/Workspace"
 import { useState, useRef, useCallback } from "react"
 import { type Layer } from "./types/Layer"
 
@@ -13,25 +13,26 @@ interface PageRedactorProps {
 export function PageRedactor({ image }: PageRedactorProps) {
     const [previewUrl, setPreviewUrl] = useState<string>('')
     const [layers, setLayers] = useState<Layer[]>([])
-    const [selectedLayerId, setSelectedLayerId] = useState<string | null>(null)
+    const [selectedLayerIds, setSelectedLayerIds] = useState<Set<string>>(new Set());
+    const [selectedTool, setSelectedTool] = useState<string>('select');
 
     const workspaceRef = useRef<WorkspaceRef>(null)     // Ссылка на методы Workspace
 
     const syncLayers = useCallback(() => {
         setLayers(workspaceRef.current?.getLayers() || []);
     }, []);
-    
 
-     // Загрузка изображения через меню
+
+    // Загрузка изображения через меню
     const handleLoadImage = useCallback(() => {
         const input = document.createElement("input");
         input.type = "file";
         input.accept = "image/*";
-        
+
         input.onchange = (e) => {
             const file = (e.target as HTMLInputElement).files?.[0];
             if (!file || !workspaceRef.current) return;
-            
+
             const reader = new FileReader();
             reader.onload = (event) => {
                 const img = new Image();
@@ -43,7 +44,7 @@ export function PageRedactor({ image }: PageRedactorProps) {
             };
             reader.readAsDataURL(file);
         };
-        
+
         input.click();
     }, [syncLayers]);
 
@@ -72,9 +73,8 @@ export function PageRedactor({ image }: PageRedactorProps) {
     }, [syncLayers]);
 
     // Выбрать слой
-    const handleSelectLayer = useCallback((id: string) => {
-        setSelectedLayerId(id);
-        workspaceRef.current?.selectLayer(id);
+    const handleSelectLayer = useCallback((id: string, multiSelect?: boolean) => {
+        workspaceRef.current?.selectLayer(id, multiSelect);
     }, []);
 
     const handleSaveAsPNG = useCallback(() => {
@@ -98,11 +98,16 @@ export function PageRedactor({ image }: PageRedactorProps) {
             image={image}
             onUpdate={setPreviewUrl}
             onLayersChange={setLayers}
+            selectedTool={selectedTool}
+            onSelectionChange={setSelectedLayerIds}
         />
-        <SidebarTools />
+        <SidebarTools
+            selectedTool={selectedTool}
+            onToolChange={setSelectedTool}
+        />
         <SidebarLayers
             layers={layers}
-            selectedLayerId={selectedLayerId}
+            selectedLayerIds={selectedLayerIds}
             onSelectLayer={handleSelectLayer}
             onToggleVisibility={handleToggleVisibility}
             onToggleLock={handleToggleLock}

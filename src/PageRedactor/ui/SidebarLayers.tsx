@@ -3,8 +3,8 @@ import  { type Layer } from '../types/Layer'
 
 interface SidebarLayersProps {
     layers?: Layer[];
-    selectedLayerId?: string | null;
-    onSelectLayer?: (id: string) => void;
+    selectedLayerIds?: Set<string>; 
+    onSelectLayer?: (id: string, multiSelect?: boolean) => void; 
     onToggleVisibility?: (id: string) => void;
     onToggleLock?: (id: string) => void;
     onRemoveLayer?: (id: string) => void;
@@ -22,21 +22,24 @@ const LayerItem = memo(({
 }: {
     layer: Layer;
     isSelected: boolean;
-    onSelect: (id: string) => void;
+    onSelect: (id: string, multiSelect?: boolean) => void;
     onToggleVisibility: (id: string) => void;
     onToggleLock: (id: string) => void;
     onRemove: (id: string) => void;
 }) => {
     return (
         <div
-            onClick={() => onSelect(layer.id)}
+            onClick={(e) => {
+                const isMultiSelect = e.ctrlKey || e.metaKey;
+                onSelect(layer.id, isMultiSelect);
+            }}
             style={{
                 display: 'flex',
                 alignItems: 'center',
                 gap: '8px',
                 padding: '8px',
                 marginBottom: '4px',
-                background: isSelected ? '#e3f2fd' : 'white',
+                background: isSelected ? '#1aa0ff' : 'white',
                 borderRadius: '4px',
                 cursor: 'pointer',
                 border: '1px solid #eee',
@@ -119,7 +122,7 @@ LayerItem.displayName = 'LayerItem';
 
 export function SidebarLayers({ 
     layers = [],
-    selectedLayerId = null,
+    selectedLayerIds = new Set(),
     onSelectLayer,
     onToggleVisibility,
     onToggleLock,
@@ -187,7 +190,7 @@ export function SidebarLayers({
                             <LayerItem
                                 key={layer.id}
                                 layer={layer}
-                                isSelected={selectedLayerId === layer.id}
+                                isSelected={selectedLayerIds.has(layer.id)}
                                 onSelect={onSelectLayer || (() => {})}
                                 onToggleVisibility={onToggleVisibility || (() => {})}
                                 onToggleLock={onToggleLock || (() => {})}
