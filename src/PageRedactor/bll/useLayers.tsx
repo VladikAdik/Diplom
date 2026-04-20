@@ -129,7 +129,14 @@ export function useLayers() {
     }, []);
 
     // Обновить позицию слоя (после перетаскивания)
-    const updateLayerPosition = useCallback((id: string, x: number, y: number, width?: number, height?: number) => {
+    const updateLayerPosition = useCallback((
+        id: string,
+        x: number,
+        y: number,
+        width?: number,
+        height?: number,
+        rotation?: number 
+    ) => {
         setLayers(prev => prev.map(layer =>
         layer.id === id
             ? { 
@@ -137,7 +144,8 @@ export function useLayers() {
                 x, 
                 y,
                 ...(width !== undefined && { width }),
-                ...(height !== undefined && { height })
+                ...(height !== undefined && { height }),
+                ...(rotation !== undefined && { rotation })
               }
             : layer
     ));

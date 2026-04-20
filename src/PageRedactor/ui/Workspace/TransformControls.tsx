@@ -1,12 +1,24 @@
 // TransformControls.tsx
 import { Transformer } from 'react-konva';
-import { useEffect, useRef } from 'react';
+import { useEffect, useRef, useCallback } from 'react';
 import Konva from 'konva';
 
 interface TransformControlsProps {
     selectedNodeIds: Set<string>;
     layerRefs: React.RefObject<Map<string, Konva.Layer>>
-    onTransformEnd?: (id: string[], x: number, y: number, width: number, height: number) => void;
+    onTransformEnd?: (transforms: Array<{
+        id: string;
+        x: number;
+        y: number;
+        width: number;
+        height: number;
+        rotation: number;
+        deltaX: number;
+        deltaY: number;
+        deltaWidth: number;
+        deltaHeight: number;
+        deltaRotation: number;
+    }>) => void; 
 }
 
 export function TransformControls({ 
@@ -15,61 +27,118 @@ export function TransformControls({
     onTransformEnd 
 }: TransformControlsProps) {
     const transformerRef = useRef<Konva.Transformer>(null);
+    // Сохраняем начальные данные трансформации
+    const transformStartData = useRef<Map<string, { x: number; y: number; width: number; height: number; rotation: number }>>(new Map());
 
-    // Этот эффект срабатывает, когда выбранный слой меняется
-    useEffect(() => {
-        if (!transformerRef.current) {
-            return;
+    // Найти все узлы по ID
+    const findNodesByIds = useCallback((ids: Set<string>): Konva.Node[] => {
+        const nodes: Konva.Node[] = [];
+        
+        for (const id of ids) {
+            const konvaLayer = layerRefs.current.get(id);
+            if (konvaLayer) {
+                // Ищем Image узел внутри слоя
+                const imageNode = konvaLayer.findOne(`.${id}`);
+                if (imageNode && imageNode instanceof Konva.Image) {
+                    nodes.push(imageNode);
+                }
+            }
         }
+        
+        return nodes;
+    }, [layerRefs]);
+
+    // Сохранить начальные позиции перед трансформацией
+    const handleTransformStart = useCallback(() => {
+        if (selectedNodeIds.size === 0) return;
+        
+        const nodes = findNodesByIds(selectedNodeIds);
+        transformStartData.current.clear();
+        
+        nodes.forEach(node => {
+            transformStartData.current.set(node.name(), {
+                x: node.x(),
+                y: node.y(),
+                width: node.width(),
+                height: node.height(),
+                rotation: node.rotation()
+            });
+        });
+    }, [selectedNodeIds, findNodesByIds]);
+
+    // После завершения трансформации - передаём изменения
+    const handleTransformEnd = useCallback(() => {
+    if (!onTransformEnd || selectedNodeIds.size === 0) return;
+    
+    const nodes = findNodesByIds(selectedNodeIds);
+    const ids = Array.from(selectedNodeIds);
+    
+    // Для каждого узла вычисляем изменения относительно начальной позиции
+    const transforms = nodes.map((node, index) => {
+        const id = ids[index];
+        const startData = transformStartData.current.get(id);
+        
+        if (!startData) return null;
+        
+        return {
+            id,
+            x: node.x(),
+            y: node.y(),
+            width: node.width(),
+            height: node.height(),
+            rotation: node.rotation(),
+            // Вычисляем дельты (относительные изменения)
+            deltaX: node.x() - startData.x,
+            deltaY: node.y() - startData.y,
+            deltaWidth: node.width() - startData.width,
+            deltaHeight: node.height() - startData.height,
+            deltaRotation: node.rotation() - startData.rotation
+        };
+    }).filter((item): item is NonNullable<typeof item> => item !== null);
+    
+    // Передаём все трансформации
+    onTransformEnd(transforms);
+    
+    transformStartData.current.clear();
+}, [selectedNodeIds, findNodesByIds, onTransformEnd]);
+
+    // Обновить трансформер при изменении выделения
+    useEffect(() => {
+        if (!transformerRef.current) return;
 
         if (selectedNodeIds.size === 0) {
             transformerRef.current.nodes([]);
+            transformerRef.current.getLayer()?.batchDraw();
             return;
         }
 
         // Даём время на рендер
         const timer = setTimeout(() => {
-            const nodes: Konva.Node[] = [];
-            
-            for (const id of selectedNodeIds) {
-                const konvaLayer = layerRefs.current.get(id);
-                if (konvaLayer) {
-                    const imageNode = konvaLayer.findOne(`.${id}`);
-                    if (imageNode && imageNode instanceof Konva.Image) {
-                        nodes.push(imageNode);
-                    }
-                }
-            }
+            const nodes = findNodesByIds(selectedNodeIds);
             
             if (nodes.length > 0) {
                 transformerRef.current?.nodes(nodes);
                 transformerRef.current?.getLayer()?.batchDraw();
+                
+                // Настройки трансформера для множественного выбора
+                transformerRef.current?.rotateEnabled(true);
+                transformerRef.current?.resizeEnabled(true);
             } else {
                 transformerRef.current?.nodes([]);
             }
         }, 0);
         
         return () => clearTimeout(timer);
-    }, [selectedNodeIds, layerRefs]);
+    }, [selectedNodeIds, findNodesByIds]);
 
-    // Когда пользователь закончил трансформацию (отпустил мышь)
-    const handleTransformEnd = (e: Konva.KonvaEventObject<Event>) => {
-        if (!onTransformEnd || selectedNodeIds.size === 0) return;
-        
-        const node = e.target;
-        const ids = Array.from(selectedNodeIds);
-        onTransformEnd(ids, node.x(), node.y(), node.width(), node.height());
-    };
-
-    // Если ничего не выбрано - не рендерим трансформер
     if (selectedNodeIds.size === 0) return null;
 
     return (
         <Transformer
             ref={transformerRef}
             boundBoxFunc={(oldBox, newBox) => {
-                // Защита от слишком маленького размера
-                if (newBox.width < 20 || newBox.height < 20) {
+                // Минимальный размер
+                if (newBox.width < 10 || newBox.height < 10) {
                     return oldBox;
                 }
                 return newBox;
@@ -77,6 +146,7 @@ export function TransformControls({
             rotateEnabled={true}
             resizeEnabled={true}
             keepRatio={false}
+            onTransformStart={handleTransformStart}
             onTransformEnd={handleTransformEnd}
             borderStroke="#2196F3"
             borderStrokeWidth={2}
@@ -85,6 +155,7 @@ export function TransformControls({
             anchorSize={8}
             rotateAnchorOffset={20}
             ignoreStroke={true}
+            
         />
     );
 }
