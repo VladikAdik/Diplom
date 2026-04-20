@@ -18,13 +18,13 @@ interface TransformControlsProps {
         deltaWidth: number;
         deltaHeight: number;
         deltaRotation: number;
-    }>) => void; 
+    }>) => void;
 }
 
-export function TransformControls({ 
-    selectedNodeIds, 
-    layerRefs, 
-    onTransformEnd 
+export function TransformControls({
+    selectedNodeIds,
+    layerRefs,
+    onTransformEnd
 }: TransformControlsProps) {
     const transformerRef = useRef<Konva.Transformer>(null);
     // Сохраняем начальные данные трансформации
@@ -33,7 +33,7 @@ export function TransformControls({
     // Найти все узлы по ID
     const findNodesByIds = useCallback((ids: Set<string>): Konva.Node[] => {
         const nodes: Konva.Node[] = [];
-        
+
         for (const id of ids) {
             const konvaLayer = layerRefs.current.get(id);
             if (konvaLayer) {
@@ -44,17 +44,17 @@ export function TransformControls({
                 }
             }
         }
-        
+
         return nodes;
     }, [layerRefs]);
 
     // Сохранить начальные позиции перед трансформацией
     const handleTransformStart = useCallback(() => {
         if (selectedNodeIds.size === 0) return;
-        
+
         const nodes = findNodesByIds(selectedNodeIds);
         transformStartData.current.clear();
-        
+
         nodes.forEach(node => {
             transformStartData.current.set(node.name(), {
                 x: node.x(),
@@ -68,39 +68,38 @@ export function TransformControls({
 
     // После завершения трансформации - передаём изменения
     const handleTransformEnd = useCallback(() => {
-    if (!onTransformEnd || selectedNodeIds.size === 0) return;
-    
-    const nodes = findNodesByIds(selectedNodeIds);
-    const ids = Array.from(selectedNodeIds);
-    
-    // Для каждого узла вычисляем изменения относительно начальной позиции
-    const transforms = nodes.map((node, index) => {
-        const id = ids[index];
-        const startData = transformStartData.current.get(id);
-        
-        if (!startData) return null;
-        
-        return {
-            id,
-            x: node.x(),
-            y: node.y(),
-            width: node.width(),
-            height: node.height(),
-            rotation: node.rotation(),
-            // Вычисляем дельты (относительные изменения)
-            deltaX: node.x() - startData.x,
-            deltaY: node.y() - startData.y,
-            deltaWidth: node.width() - startData.width,
-            deltaHeight: node.height() - startData.height,
-            deltaRotation: node.rotation() - startData.rotation
-        };
-    }).filter((item): item is NonNullable<typeof item> => item !== null);
-    
-    // Передаём все трансформации
-    onTransformEnd(transforms);
-    
-    transformStartData.current.clear();
-}, [selectedNodeIds, findNodesByIds, onTransformEnd]);
+        if (!onTransformEnd || selectedNodeIds.size === 0) return;
+
+        const nodes = findNodesByIds(selectedNodeIds);
+
+        // Для каждого узла вычисляем изменения относительно начальной позиции
+        const transforms = nodes.map((node) => {
+            const id = node.name();
+            const startData = transformStartData.current.get(id);
+
+            if (!startData) return null;
+
+            return {
+                id,
+                x: node.x(),
+                y: node.y(),
+                width: node.width(),
+                height: node.height(),
+                rotation: node.rotation(),
+                // Вычисляем дельты (относительные изменения)
+                deltaX: node.x() - startData.x,
+                deltaY: node.y() - startData.y,
+                deltaWidth: node.width() - startData.width,
+                deltaHeight: node.height() - startData.height,
+                deltaRotation: node.rotation() - startData.rotation
+            };
+        }).filter((item): item is NonNullable<typeof item> => item !== null);
+
+        // Передаём все трансформации
+        onTransformEnd(transforms);
+
+        transformStartData.current.clear();
+    }, [selectedNodeIds, findNodesByIds, onTransformEnd]);
 
     // Обновить трансформер при изменении выделения
     useEffect(() => {
@@ -115,11 +114,11 @@ export function TransformControls({
         // Даём время на рендер
         const timer = setTimeout(() => {
             const nodes = findNodesByIds(selectedNodeIds);
-            
+
             if (nodes.length > 0) {
                 transformerRef.current?.nodes(nodes);
                 transformerRef.current?.getLayer()?.batchDraw();
-                
+
                 // Настройки трансформера для множественного выбора
                 transformerRef.current?.rotateEnabled(true);
                 transformerRef.current?.resizeEnabled(true);
@@ -127,7 +126,7 @@ export function TransformControls({
                 transformerRef.current?.nodes([]);
             }
         }, 0);
-        
+
         return () => clearTimeout(timer);
     }, [selectedNodeIds, findNodesByIds]);
 
@@ -155,7 +154,7 @@ export function TransformControls({
             anchorSize={8}
             rotateAnchorOffset={20}
             ignoreStroke={true}
-            
+
         />
     );
 }

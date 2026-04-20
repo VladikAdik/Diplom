@@ -1,28 +1,31 @@
-import { forwardRef, useImperativeHandle, useEffect, useCallback, useRef, useState } from 'react';
-import { Stage, Layer as KonvaLayer, Image as KonvaImage, Rect } from 'react-konva';
+import { forwardRef, useImperativeHandle, useEffect, useCallback, useRef } from 'react';
+import { Stage, Layer as KonvaLayer } from 'react-konva';
 import { useWorkspaceLogic } from '../../bll/useWorkspaceLogic';
 import { useLayers } from '../../bll/useLayers';
 import { type Layer } from '../../types/Layer';
-import { TransformControls } from './TransformControls'
-import type Konva from 'konva';
+import { TransformControls } from './TransformControls';
+import { useSelectionRect } from './useSelectionRect';
+import { SelectionRectLayer } from './SelectionRectLayer';
+import { LayerRenderer } from './LayerRenderer';
 
 interface WorkspaceProps {
-    image?: HTMLImageElement | null
-    onUpdate?: (url: string) => void
-    onLayersChange?: (layers: Layer[]) => void
-    onSelectionChange?: (ids: Set<string>) => void
-    selectedTool?: string
+    image?: HTMLImageElement | null;
+    onUpdate?: (url: string) => void;
+    onLayersChange?: (layers: Layer[]) => void;
+    onSelectionChange?: (ids: Set<string>) => void;
+    selectedTool?: string;
 }
 
+// Методы, которые будут доступны родителю (PageRedactor) через ref
 export interface WorkspaceRef {
-    addImage: (newImage: HTMLImageElement) => void
-    addLayer: () => void
-    getLayers: () => Layer[]
-    selectLayer: (id: string, multiSelect?: boolean) => void
-    toggleVisibility: (id: string) => void
-    toggleLock: (id: string) => void
-    removeLayer: (id: string) => void
-    resetView: () => void
+    addImage: (newImage: HTMLImageElement) => void;
+    addLayer: () => void;
+    getLayers: () => Layer[];
+    selectLayer: (id: string, multiSelect?: boolean) => void;
+    toggleVisibility: (id: string) => void;
+    toggleLock: (id: string) => void;
+    removeLayer: (id: string) => void;
+    resetView: () => void;
 }
 
 export const Workspace = forwardRef<WorkspaceRef, WorkspaceProps>(({
@@ -30,20 +33,15 @@ export const Workspace = forwardRef<WorkspaceRef, WorkspaceProps>(({
     onUpdate,
     onLayersChange,
     onSelectionChange,
-    selectedTool = 'select'
+    selectedTool = 'select'  // По умолчанию инструмент выделения
 }, ref) => {
-    // Флаг для предотвращения повторной загрузки начального изображения
+    // Предотвращает повторную загрузку начального изображения при ререндерах
     const initialImageLoadedRef = useRef(false);
-    
-    // Состояния для рамки выделения
-    const [isSelecting, setIsSelecting] = useState(false);
-    const [selectionRect, setSelectionRect] = useState({ x: 0, y: 0, width: 0, height: 0 });
-    const selectionStartRef = useRef({ x: 0, y: 0 });
-    const isDrawingRef = useRef(false);
 
-    // Хуки бизнес-логики
+    // Хук для управления зумом, панорамированием и созданием превью
     const { stageRef, handleWheel, resetView, updatePreview } = useWorkspaceLogic({ onUpdate });
 
+    // Хук для управления слоями (добавление, удаление, выделение и т.д.)
     const {
         layers,
         selectedLayerIds,
@@ -57,17 +55,26 @@ export const Workspace = forwardRef<WorkspaceRef, WorkspaceProps>(({
         updateLayerPosition,
     } = useLayers();
 
-    // Уведомляем родителя об изменении слоёв
+    // Хук для выделения рамкой (клик + перетаскивание на пустом месте)
+    const { isSelecting, selectionRect } = useSelectionRect({
+        stageRef,
+        selectedTool,
+        layers,
+        clearSelection,
+        selectLayer
+    });
+
+    // Уведомляем родителя об изменении списка слоёв
     useEffect(() => {
         onLayersChange?.(layers);
     }, [layers, onLayersChange]);
 
-    // Уведомляем родителя об изменении выделения
+    // Уведомляем родителя об изменении выделенных слоёв
     useEffect(() => {
         onSelectionChange?.(selectedLayerIds);
     }, [selectedLayerIds, onSelectionChange]);
 
-    // При первом запуске создаём слой с переданным изображением
+    // При монтировании: если передано изображение, создаём базовый слой
     useEffect(() => {
         if (image && !initialImageLoadedRef.current && layers.length === 0) {
             initialImageLoadedRef.current = true;
@@ -87,7 +94,7 @@ export const Workspace = forwardRef<WorkspaceRef, WorkspaceProps>(({
     // Обработчик завершения перетаскивания слоя
     const handleImageDragEnd = useCallback((layerId: string, x: number, y: number) => {
         updateLayerPosition(layerId, x, y);
-        updatePreview();
+        updatePreview(); // Обновляем превью после перемещения
     }, [updateLayerPosition, updatePreview]);
 
     // Обработчик завершения трансформации (масштабирование/поворот)
@@ -99,151 +106,19 @@ export const Workspace = forwardRef<WorkspaceRef, WorkspaceProps>(({
         height: number;
         rotation: number;
     }>) => {
+        // Применяем новые координаты и размеры ко всем трансформированным слоям
         transforms.forEach(({ id, x, y, width, height, rotation }) => {
             updateLayerPosition(id, x, y, width, height, rotation);
         });
-        setTimeout(() => updatePreview(), 0);
+        setTimeout(() => updatePreview(), 0); // Асинхронное обновление превью
     }, [updateLayerPosition, updatePreview]);
 
-    // Обработка выделения рамкой (клик + перетаскивание на пустом месте)
-    useEffect(() => {
-        const stage = stageRef.current;
-        if (!stage) return;
-        
-        const handleMouseDown = (e: Konva.KonvaEventObject<MouseEvent>) => {
-            if (selectedTool !== 'select') return;
-            if (e.target !== stage) return;
-            
-            const pos = stage.getPointerPosition();
-            if (!pos) return;
-            
-            isDrawingRef.current = true;
-            selectionStartRef.current = pos;
-            setIsSelecting(true);
-            setSelectionRect({ x: pos.x, y: pos.y, width: 0, height: 0 });
-        };
-        
-        const handleMouseMove = () => {
-            if (!isDrawingRef.current || selectedTool !== 'select') return;
-            
-            const pos = stage.getPointerPosition();
-            if (!pos) return;
-            
-            const startX = selectionStartRef.current.x;
-            const startY = selectionStartRef.current.y;
-            const width = pos.x - startX;
-            const height = pos.y - startY;
-            
-            setSelectionRect({
-                x: width > 0 ? startX : pos.x,
-                y: height > 0 ? startY : pos.y,
-                width: Math.abs(width),
-                height: Math.abs(height)
-            });
-        };
-        
-        const handleMouseUp = (e: Konva.KonvaEventObject<MouseEvent>) => {
-    if (!isDrawingRef.current || selectedTool !== 'select') return;
-    
-    // Если рамка маленькая (простой клик) - сбрасываем выделение
-    const isClickOnly = selectionRect.width <= 5 && selectionRect.height <= 5;
-    
-    if (isClickOnly) {
-        // Простой клик по пустоте - сбрасываем выделение
-        if (!e.evt.ctrlKey && !e.evt.metaKey) {
-            clearSelection();
-        }
-    } else {
-        // Рамка достаточно большая - выделяем попавшие слои
-        const toSelect: string[] = [];
-        
-        layers.forEach(layer => {
-            if (layer.locked) return;
-            
-            const x = layer.x ?? 100;
-            const y = layer.y ?? 100;
-            const w = layer.width ?? (layer.data instanceof HTMLImageElement ? layer.data.width : 200);
-            const h = layer.height ?? (layer.data instanceof HTMLImageElement ? layer.data.height : 200);
-            
-            if (selectionRect.x < x + w && selectionRect.x + selectionRect.width > x &&
-                selectionRect.y < y + h && selectionRect.y + selectionRect.height > y) {
-                toSelect.push(layer.id);
-            }
-        });
-        
-        if (toSelect.length > 0) {
-            clearSelection();
-            toSelect.forEach(id => selectLayer(id, true));
-        }
-    }
-    
-    // Сброс состояния рисования
-    isDrawingRef.current = false;
-    setIsSelecting(false);
-    setSelectionRect({ x: 0, y: 0, width: 0, height: 0 });
-};
-        
-        stage.on('mousedown', handleMouseDown);
-        stage.on('mousemove', handleMouseMove);
-        stage.on('mouseup', handleMouseUp);
-        
-        return () => {
-            stage.off('mousedown', handleMouseDown);
-            stage.off('mousemove', handleMouseMove);
-            stage.off('mouseup', handleMouseUp);
-        };
-    }, [selectedTool, stageRef, layers, clearSelection, selectLayer, selectionRect]);
+    // Обёртка для selectLayer (для совместимости с LayerRenderer)
+    const handleSelectLayer = useCallback((id: string, multiSelect: boolean) => {
+        selectLayer(id, multiSelect);
+    }, [selectLayer]);
 
-    // Рендер отдельного слоя
-    const renderLayer = useCallback((layer: Layer) => {
-        const isSelected = selectedLayerIds.has(layer.id);
-        const canDrag = !layer.locked && selectedTool === 'select';
-
-        return (
-            <KonvaLayer
-                key={layer.id}
-                ref={(node) => {
-                    if (node) {
-                        const konvaLayer = node.getLayer();
-                        if (konvaLayer) {
-                            layerRefs.current.set(layer.id, konvaLayer);
-                        }
-                    }
-                }}
-                visible={layer.visible}
-                opacity={layer.opacity}
-                listening={!layer.locked}
-            >
-                {layer.type === 'image' && layer.data instanceof HTMLImageElement && (
-                    <KonvaImage
-                        image={layer.data}
-                        x={layer.x ?? 100}
-                        y={layer.y ?? 100}
-                        width={layer.width}
-                        height={layer.height}
-                        draggable={canDrag}
-                        onDragEnd={(e) => {
-                            handleImageDragEnd(layer.id, e.target.x(), e.target.y());
-                        }}
-                        onMouseDown={(e) => {
-                            e.cancelBubble = true;
-                            if (selectedTool === 'select') {
-                                const isMultiSelect = e.evt.ctrlKey || e.evt.metaKey;
-                                const isAlreadySelected = selectedLayerIds.has(layer.id);
-                                if (isAlreadySelected && !isMultiSelect) return;
-                                selectLayer(layer.id, isMultiSelect);
-                            }
-                        }}
-                        stroke={isSelected ? '#2196F3' : undefined}
-                        strokeWidth={isSelected ? 2 : 0}
-                        name={layer.id}
-                    />
-                )}
-            </KonvaLayer>
-        );
-    }, [selectedLayerIds, layerRefs, selectLayer, handleImageDragEnd, selectedTool]);
-
-    // Экспортируем методы для родительского компонента
+    // Экспортируем методы для родительского компонента (PageRedactor)
     useImperativeHandle(ref, () => ({
         addImage: (newImage: HTMLImageElement) => {
             addLayer({
@@ -290,8 +165,21 @@ export const Workspace = forwardRef<WorkspaceRef, WorkspaceProps>(({
                     cursor: selectedTool === 'select' ? 'default' : 'crosshair'
                 }}
             >
-                {layers.map(renderLayer)}
+                {/* Все слои с изображениями */}
+                {layers.map(layer => (
+                    <LayerRenderer
+                        key={layer.id}
+                        layer={layer}
+                        isSelected={selectedLayerIds.has(layer.id)}
+                        canDrag={!layer.locked && selectedTool === 'select'}
+                        onDragEnd={handleImageDragEnd}
+                        onSelect={handleSelectLayer}
+                        selectedTool={selectedTool}
+                        layerRefs={layerRefs}
+                    />
+                ))}
 
+                {/* Контролы трансформации (рамка с якорями) */}
                 <KonvaLayer>
                     <TransformControls
                         selectedNodeIds={selectedTool === 'select' ? selectedLayerIds : new Set()}
@@ -300,21 +188,8 @@ export const Workspace = forwardRef<WorkspaceRef, WorkspaceProps>(({
                     />
                 </KonvaLayer>
 
-                {isSelecting && selectionRect.width > 0 && selectionRect.height > 0 && (
-                    <KonvaLayer>
-                        <Rect
-                            x={selectionRect.x}
-                            y={selectionRect.y}
-                            width={selectionRect.width}
-                            height={selectionRect.height}
-                            fill="rgba(33, 150, 243, 0.2)"
-                            stroke="#2196F3"
-                            strokeWidth={2}
-                            dash={[5, 5]}
-                            listening={false}
-                        />
-                    </KonvaLayer>
-                )}
+                {/* Визуальная рамка выделения (рисуется поверх всего) */}
+                <SelectionRectLayer isSelecting={isSelecting} selectionRect={selectionRect} />
             </Stage>
         </div>
     );

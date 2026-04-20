@@ -15,26 +15,21 @@ export function useLayers() {
 
     // Добавить слой
     const addLayer = useCallback((layer: Omit<Layer, 'id' | 'zIndex'>) => {
-        const newLayer: Layer = {
-            ...layer,
-            id: generateId(),
-            zIndex: Date.now(),
-        };
-        
         setLayers(prev => {
-            // Сортируем по zIndex (новые сверху)
-            const updated = [...prev, newLayer];
-            return updated.sort((a, b) => b.zIndex - a.zIndex);
+            const newLayer: Layer = {
+                ...layer,
+                id: generateId(),
+                zIndex: prev.length
+            };
+            return [...prev, newLayer];
         });
-        
-        return newLayer;
     }, [generateId]);
 
     // Удалить слой
     const removeLayer = useCallback((id: string) => {
         setLayers(prev => prev.filter(l => l.id !== id));
         layerRefs.current.delete(id);
-        
+
         setSelectedLayerIds(prev => {
             const newSet = new Set(prev);
             newSet.delete(id);
@@ -45,7 +40,7 @@ export function useLayers() {
     const selectLayer = useCallback((id: string, multiSelect: boolean = false) => {
         setSelectedLayerIds(prev => {
             const newSet = new Set(prev);
-            
+
             if (multiSelect) {
                 // Ctrl/Cmd + клик: добавляем/убираем слой
                 if (newSet.has(id)) {
@@ -58,7 +53,7 @@ export function useLayers() {
                 newSet.clear();
                 newSet.add(id);
             }
-            
+
             return newSet;
         });
     }, []);
@@ -73,8 +68,8 @@ export function useLayers() {
 
     // Переключить видимость
     const toggleVisibility = useCallback((id: string) => {
-        setLayers(prev => prev.map(layer => 
-            layer.id === id 
+        setLayers(prev => prev.map(layer =>
+            layer.id === id
                 ? { ...layer, visible: !layer.visible }
                 : layer
         ));
@@ -82,8 +77,8 @@ export function useLayers() {
 
     // Заблокировать/разблокировать
     const toggleLock = useCallback((id: string) => {
-        setLayers(prev => prev.map(layer => 
-            layer.id === id 
+        setLayers(prev => prev.map(layer =>
+            layer.id === id
                 ? { ...layer, locked: !layer.locked }
                 : layer
         ));
@@ -91,12 +86,12 @@ export function useLayers() {
 
     // Изменить прозрачность
     const setOpacity = useCallback((id: string, opacity: number) => {
-        setLayers(prev => prev.map(layer => 
-            layer.id === id 
+        setLayers(prev => prev.map(layer =>
+            layer.id === id
                 ? { ...layer, opacity }
                 : layer
         ));
-        
+
         const layer = layerRefs.current.get(id);
         if (layer) {
             layer.opacity(opacity);
@@ -109,17 +104,17 @@ export function useLayers() {
         setLayers(prev => {
             const index = prev.findIndex(l => l.id === id);
             if (index === -1) return prev;
-            
+
             // Проверка границ
             if (direction === 'up' && index === prev.length - 1) return prev;
             if (direction === 'down' && index === 0) return prev;
-            
+
             const newIndex = direction === 'up' ? index + 1 : index - 1;
             const newLayers = [...prev];
-            
+
             // Меняем местами
             [newLayers[index], newLayers[newIndex]] = [newLayers[newIndex], newLayers[index]];
-            
+
             // Обновляем zIndex для всех слоёв (чтобы порядок соответствовал)
             return newLayers.map((layer, idx) => ({
                 ...layer,
@@ -135,20 +130,20 @@ export function useLayers() {
         y: number,
         width?: number,
         height?: number,
-        rotation?: number 
+        rotation?: number
     ) => {
         setLayers(prev => prev.map(layer =>
-        layer.id === id
-            ? { 
-                ...layer, 
-                x, 
-                y,
-                ...(width !== undefined && { width }),
-                ...(height !== undefined && { height }),
-                ...(rotation !== undefined && { rotation })
-              }
-            : layer
-    ));
+            layer.id === id
+                ? {
+                    ...layer,
+                    x,
+                    y,
+                    ...(width !== undefined && { width }),
+                    ...(height !== undefined && { height }),
+                    ...(rotation !== undefined && { rotation })
+                }
+                : layer
+        ));
     }, []);
 
     return {
@@ -157,7 +152,7 @@ export function useLayers() {
         setSelectedLayerIds,
         selectLayer,
         clearSelection,
-        selectAll,  
+        selectAll,
         layerRefs,
         addLayer,
         removeLayer,
