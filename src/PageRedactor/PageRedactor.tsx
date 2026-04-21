@@ -3,8 +3,9 @@ import { SidebarSummary } from "./ui/SidebarSummary"
 import { SidebarTools } from "./ui/SidebarTools"
 import { Header } from "./ui/Header/Header"
 import { Workspace, type WorkspaceRef } from "./ui/Workspace/Workspace"
-import { useState, useRef, useCallback } from "react"
+import { useState, useRef, useCallback, useEffect } from "react"
 import { type Layer } from "./types/Layer"
+import { useHistory } from './bll/useHistory';
 
 interface PageRedactorProps {
     image: HTMLImageElement | null;
@@ -18,10 +19,51 @@ export function PageRedactor({ image }: PageRedactorProps) {
 
     const workspaceRef = useRef<WorkspaceRef>(null)     // Ссылка на методы Workspace
 
+    const { saveState, undo, redo, canUndo, canRedo} = useHistory();
+
+    const handleStateChange = useCallback((newLayers: Layer[], newSelectedIds: Set<string>, isIntermediate: boolean = false) => {
+        saveState(newLayers, newSelectedIds, isIntermediate);
+    }, [saveState]);
+
     const syncLayers = useCallback(() => {
         setLayers(workspaceRef.current?.getLayers() || []);
     }, []);
 
+    const handleUndo = useCallback(async () => {
+        const state = await undo();
+        if (state && workspaceRef.current) {
+            workspaceRef.current.restoreState(state.layers, state.selectedLayerIds);
+            syncLayers();
+        }
+    }, [undo, syncLayers]);
+
+    const handleRedo = useCallback(async () => {
+        const state = await redo();
+        if (state && workspaceRef.current) {
+            workspaceRef.current.restoreState(state.layers, state.selectedLayerIds);
+            syncLayers();
+        }
+    }, [redo, syncLayers]);
+
+    useEffect(() => {
+        const handleKeyDown = (e: KeyboardEvent) => {
+            if ((e.ctrlKey || e.metaKey) && e.key === 'z') {
+                e.preventDefault();
+                if (e.shiftKey) {
+                    handleRedo();
+                } else {
+                    handleUndo();
+                }
+            }
+            if ((e.ctrlKey || e.metaKey) && e.key === 'y') {
+                e.preventDefault();
+                handleRedo();
+            }
+        };
+
+        window.addEventListener('keydown', handleKeyDown);
+        return () => window.removeEventListener('keydown', handleKeyDown);
+    }, [handleUndo, handleRedo]);
 
     // Загрузка изображения через меню
     const handleLoadImage = useCallback(() => {
@@ -92,6 +134,10 @@ export function PageRedactor({ image }: PageRedactorProps) {
             onLoadImage={handleLoadImage}
             onSaveAsPNG={handleSaveAsPNG}
             onSaveAsJPG={handleSaveAsJPG}
+            onUndo={handleUndo}
+            onRedo={handleRedo}
+            canUndo={canUndo}
+            canRedo={canRedo}
         />
         <Workspace
             ref={workspaceRef}
@@ -100,6 +146,7 @@ export function PageRedactor({ image }: PageRedactorProps) {
             onLayersChange={setLayers}
             selectedTool={selectedTool}
             onSelectionChange={setSelectedLayerIds}
+            onStateChange={handleStateChange}
         />
         <SidebarTools
             selectedTool={selectedTool}

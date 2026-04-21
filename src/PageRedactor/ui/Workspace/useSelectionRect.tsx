@@ -123,7 +123,7 @@ export function useSelectionRect({
             stage.off('mousemove', handleMouseMove);
             stage.off('mouseup', handleMouseUp);
         };
-    }, [selectedTool, stageRef, layers, clearSelection, selectLayer, selectionRect]);
+    }, [selectedTool, stageRef, layers, clearSelection, selectLayer]);
 
     return { isSelecting, selectionRect };
 }

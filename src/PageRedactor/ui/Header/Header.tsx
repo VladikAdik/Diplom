@@ -8,6 +8,8 @@ interface HeaderProps {
     onSaveAsJPG?: () => void;
     onUndo?: () => void;
     onRedo?: () => void;
+    canUndo?: boolean;
+    canRedo?: boolean;
     onDelete?: () => void;
     onClearAll?: () => void;
     onShowShortcuts?: () => void;
@@ -21,6 +23,8 @@ export function Header({
     onSaveAsJPG,
     onUndo,
     onRedo,
+    canUndo,
+    canRedo,
     onDelete,
     onClearAll,
     onShowShortcuts,
@@ -36,8 +40,8 @@ export function Header({
         </HeaderTab>
 
         <HeaderTab title="Редактировать">
-            <HeaderTabItem onClick={onUndo}>↩ Отменить (Ctrl+Z)</HeaderTabItem>
-            <HeaderTabItem onClick={onRedo}>↪ Повторить (Ctrl+Y)</HeaderTabItem>
+            <HeaderTabItem onClick={onUndo}>↩ Отменить (Ctrl+Z) {!canUndo && '(недоступно)'} </HeaderTabItem>
+            <HeaderTabItem onClick={onRedo}>↪ Повторить (Ctrl+Y) {!canRedo && '(недоступно)'}</HeaderTabItem>
             <HeaderTabItem onClick={onDelete}>🗑 Удалить выделенное (Delete)</HeaderTabItem>
             <HeaderTabItem onClick={onClearAll}>🧹 Очистить всё</HeaderTabItem>
         </HeaderTab>

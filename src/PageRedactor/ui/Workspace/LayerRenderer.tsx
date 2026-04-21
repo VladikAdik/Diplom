@@ -1,5 +1,5 @@
 import { memo } from 'react';
-import { Layer as KonvaLayer, Image as KonvaImage } from 'react-konva';
+import { Layer as KonvaLayer, Image as KonvaImage, Shape as KonvaShape, Text as KonvaText } from 'react-konva';
 import type Konva from 'konva';
 import type { Layer } from '../../types/Layer';
 
@@ -38,10 +38,10 @@ export const LayerRenderer = memo(({
             opacity={layer.opacity}     // Прозрачность слоя
             listening={!layer.locked}   // Заблокированный слой не реагирует на события
         >
-            {/* Пока поддерживаются только изображения */}
-            {layer.type === 'image' && layer.data instanceof HTMLImageElement && (
+            {/* Изображения */}
+            {layer.type === 'image' && layer.runtime?.imageElement && (
                 <KonvaImage
-                    image={layer.data}
+                    image={layer.runtime.imageElement}
                     x={layer.x ?? 100}
                     y={layer.y ?? 100}
                     width={layer.width}
@@ -61,6 +61,50 @@ export const LayerRenderer = memo(({
                     stroke={isSelected ? '#2196F3' : undefined}  // Синяя обводка у выделенного
                     strokeWidth={isSelected ? 2 : 0}
                     name={layer.id}  // Используется TransformControls для поиска узла
+                />
+            )}
+            {layer.type === 'shape' && layer.runtime?.shapeConfig && (
+                <KonvaShape
+                    {...layer.runtime.shapeConfig}
+                    x={layer.x}
+                    y={layer.y}
+                    rotation={layer.rotation}
+                    draggable={canDrag}
+                    onMouseDown={(e) => {
+                        e.cancelBubble = true;
+                        if (selectedTool === 'select') {
+                            const isMultiSelect = e.evt.ctrlKey || e.evt.metaKey;
+                            const isAlreadySelected = isSelected;
+                            if (isAlreadySelected && !isMultiSelect) return;
+                            onSelect(layer.id, isMultiSelect);
+                        }
+                    }}
+                    stroke={isSelected ? '#2196F3' : undefined}
+                    strokeWidth={isSelected ? 2 : 0}
+                    name={layer.id}
+                />
+            )}
+
+            {layer.type === 'text' && layer.runtime?.textConfig && (
+                <KonvaText
+                    {...layer.runtime.textConfig}
+                    x={layer.x}
+                    y={layer.y}
+                    rotation={layer.rotation}
+                    draggable={canDrag}
+                    onDragEnd={(e) => onDragEnd(layer.id, e.target.x(), e.target.y())}
+                    onMouseDown={(e) => {
+                        e.cancelBubble = true;
+                        if (selectedTool === 'select') {
+                            const isMultiSelect = e.evt.ctrlKey || e.evt.metaKey;
+                            const isAlreadySelected = isSelected;
+                            if (isAlreadySelected && !isMultiSelect) return;
+                            onSelect(layer.id, isMultiSelect);
+                        }
+                    }}
+                    stroke={isSelected ? '#2196F3' : undefined}
+                    strokeWidth={isSelected ? 2 : 0}
+                    name={layer.id}
                 />
             )}
         </KonvaLayer>

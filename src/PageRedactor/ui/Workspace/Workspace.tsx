@@ -14,6 +14,7 @@ interface WorkspaceProps {
     onLayersChange?: (layers: Layer[]) => void;
     onSelectionChange?: (ids: Set<string>) => void;
     selectedTool?: string;
+    onStateChange?: (layers: Layer[], selectedIds: Set<string>, isIntermediate?: boolean) => void;
 }
 
 // Методы, которые будут доступны родителю (PageRedactor) через ref
@@ -26,6 +27,7 @@ export interface WorkspaceRef {
     toggleLock: (id: string) => void;
     removeLayer: (id: string) => void;
     resetView: () => void;
+    restoreState: (layers: Layer[], selectedIds: Set<string>) => void;
 }
 
 export const Workspace = forwardRef<WorkspaceRef, WorkspaceProps>(({
@@ -33,7 +35,8 @@ export const Workspace = forwardRef<WorkspaceRef, WorkspaceProps>(({
     onUpdate,
     onLayersChange,
     onSelectionChange,
-    selectedTool = 'select'  // По умолчанию инструмент выделения
+    selectedTool = 'select',  // По умолчанию инструмент выделения
+    onStateChange
 }, ref) => {
     // Предотвращает повторную загрузку начального изображения при ререндерах
     const initialImageLoadedRef = useRef(false);
@@ -53,7 +56,8 @@ export const Workspace = forwardRef<WorkspaceRef, WorkspaceProps>(({
         toggleVisibility,
         toggleLock,
         updateLayerPosition,
-    } = useLayers();
+        restoreState,
+    } = useLayers(onStateChange);
 
     // Хук для выделения рамкой (клик + перетаскивание на пустом месте)
     const { isSelecting, selectionRect } = useSelectionRect({
@@ -84,16 +88,25 @@ export const Workspace = forwardRef<WorkspaceRef, WorkspaceProps>(({
                 locked: false,
                 opacity: 1,
                 type: 'image',
-                data: image,
                 x: 100,
-                y: 100
+                y: 100,
+                width: image.width,
+                height: image.height,
+                rotation: 0,
+                data: {
+                    type: 'image',
+                    src: ''  // временно
+                },
+                runtime: {
+                    imageElement: image
+                }
             });
         }
     }, [image, addLayer, layers.length]);
 
     // Обработчик завершения перетаскивания слоя
     const handleImageDragEnd = useCallback((layerId: string, x: number, y: number) => {
-        updateLayerPosition(layerId, x, y);
+        updateLayerPosition(layerId, x, y, undefined, undefined, undefined, false);
         updatePreview(); // Обновляем превью после перемещения
     }, [updateLayerPosition, updatePreview]);
 
@@ -108,7 +121,7 @@ export const Workspace = forwardRef<WorkspaceRef, WorkspaceProps>(({
     }>) => {
         // Применяем новые координаты и размеры ко всем трансформированным слоям
         transforms.forEach(({ id, x, y, width, height, rotation }) => {
-            updateLayerPosition(id, x, y, width, height, rotation);
+            updateLayerPosition(id, x, y, width, height, rotation, false);
         });
         setTimeout(() => updatePreview(), 0); // Асинхронное обновление превью
     }, [updateLayerPosition, updatePreview]);
@@ -127,9 +140,18 @@ export const Workspace = forwardRef<WorkspaceRef, WorkspaceProps>(({
                 locked: false,
                 opacity: 1,
                 type: 'image',
-                data: newImage,
                 x: 100,
-                y: 100
+                y: 100,
+                width: newImage.width,
+                height: newImage.height,
+                rotation: 0,
+                data: {
+                    type: 'image',
+                    src: ''  // временно, будет заполнено при сериализации
+                },
+                runtime: {
+                    imageElement: newImage  // ✅ сохраняем изображение
+                }
             });
         },
         getLayers: () => layers,
@@ -144,13 +166,22 @@ export const Workspace = forwardRef<WorkspaceRef, WorkspaceProps>(({
                 locked: false,
                 opacity: 1,
                 type: 'shape',
-                data: null,
+                data: {
+                    type: 'shape',
+                    shapeType: 'rect',
+                    fill: '#cccccc',
+                    stroke: '#000000',
+                    strokeWidth: 2
+                },
                 x: 100,
                 y: 100
             });
         },
-        resetView: resetView
-    }), [layers, addLayer, toggleVisibility, toggleLock, removeLayer, resetView, selectLayer]);
+        resetView: resetView,
+        restoreState: (newLayers: Layer[], newSelectedIds: Set<string>) => {
+            restoreState(newLayers, newSelectedIds);
+        }
+    }), [layers, addLayer, toggleVisibility, toggleLock, removeLayer, resetView, selectLayer, restoreState]);
 
     return (
         <div style={{ width: '100%', height: 'calc(100vh - 100px)', overflow: 'hidden' }}>
