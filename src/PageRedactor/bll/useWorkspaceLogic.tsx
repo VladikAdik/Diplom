@@ -1,5 +1,6 @@
 import { useRef, useEffect, useCallback, useState } from 'react';
 import Konva from 'konva';
+import { MIN_SCALE, MAX_SCALE, ZOOM_STEP, STAGE_PADDING_BOTTOM } from '../constants/editor';
 
 interface WorkspaceLogicProps {
     onUpdate?: (url: string) => void;
@@ -29,9 +30,9 @@ export function useWorkspaceLogic({ onUpdate }: WorkspaceLogicProps) {
         
         if (!pointer) return;
         
-        const delta = e.evt.deltaY > 0 ? -0.1 : 0.1;
+        const delta = e.evt.deltaY > 0 ? -ZOOM_STEP : ZOOM_STEP;
         let newScale = oldScale + delta;
-        newScale = Math.min(Math.max(newScale, 0.1), 5);
+        newScale = Math.min(Math.max(newScale, MIN_SCALE), MAX_SCALE);
         
         if (newScale === oldScale) return;
         
@@ -61,7 +62,7 @@ export function useWorkspaceLogic({ onUpdate }: WorkspaceLogicProps) {
             if (!stageRef.current) return;
             
             const stageWidth = window.innerWidth;
-            const stageHeight = window.innerHeight - 100;
+            const stageHeight = window.innerHeight - STAGE_PADDING_BOTTOM;
             
             stageRef.current.width(stageWidth);
             stageRef.current.height(stageHeight);

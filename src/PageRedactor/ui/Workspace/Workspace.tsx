@@ -6,6 +6,13 @@ import { TransformControls } from './TransformControls';
 import { useSelectionRect } from './useSelectionRect';
 import { SelectionRectLayer } from './SelectionRectLayer';
 import { LayerRenderer } from './LayerRenderer';
+import type Konva from 'konva';
+
+interface WorkspaceHandle {
+    resetView: () => void;
+    updatePreview: () => void;
+    getStage: () => Konva.Stage | null;
+}
 
 interface WorkspaceProps {
     layers: Layer[];
@@ -15,7 +22,6 @@ interface WorkspaceProps {
     selectedTool?: string;
     onSelectLayer?: (id: string, multiSelect?: boolean) => void;
     onClearSelection?: () => void;
-    onSelectAll?: () => void;
     onLayerDragEnd?: (id: string, x: number, y: number) => void;
     onTransformEnd?: (transforms: Array<{
         id: string;
@@ -25,12 +31,11 @@ interface WorkspaceProps {
         height: number;
         rotation: number;
     }>) => void;
-    onSaveStateBeforeTransform?: () => void;
-    layerRefs?: React.MutableRefObject<Map<string, any>>;
-    onStageReady?: (stage: any) => void;
+    layerRefs?: React.MutableRefObject<Map<string, Konva.Layer>>;
+    onStageReady?: (stage: Konva.Stage) => void;
 }
 
-export const Workspace = forwardRef<any, WorkspaceProps>(({
+export const Workspace = forwardRef<WorkspaceHandle, WorkspaceProps>(({
     layers,
     selectedLayerIds,
     image,
@@ -38,10 +43,8 @@ export const Workspace = forwardRef<any, WorkspaceProps>(({
     selectedTool = 'select',
     onSelectLayer,
     onClearSelection,
-    onSelectAll,
     onLayerDragEnd,
     onTransformEnd,
-    onSaveStateBeforeTransform,
     layerRefs: externalLayerRefs,
     onStageReady
 }, ref) => {
@@ -49,8 +52,9 @@ export const Workspace = forwardRef<any, WorkspaceProps>(({
     const { stageRef, handleWheel, resetView, updatePreview } = useWorkspaceLogic({ onUpdate });
 
     // Внутренние refs для слоёв, если не переданы снаружи
-    const internalLayerRefs = useRef<Map<string, any>>(new Map());
+    const internalLayerRefs = useRef<Map<string, Konva.Layer>>(new Map());
     const layerRefs = externalLayerRefs || internalLayerRefs;
+    const stageReadyCalled = useRef(false);
 
     // Хук для выделения рамкой
     const { isSelecting, selectionRect } = useSelectionRect({
@@ -63,7 +67,8 @@ export const Workspace = forwardRef<any, WorkspaceProps>(({
 
     // Уведомляем родителя о готовности stage (если нужно)
     useEffect(() => {
-        if (stageRef.current) {
+        if (stageRef.current && !stageReadyCalled.current) {
+            stageReadyCalled.current = true;
             onStageReady?.(stageRef.current);
         }
     }, [stageRef, onStageReady]);
@@ -80,14 +85,9 @@ export const Workspace = forwardRef<any, WorkspaceProps>(({
     // Обработчик завершения перетаскивания слоя
     const handleImageDragEnd = useCallback((layerId: string, x: number, y: number) => {
         onLayerDragEnd?.(layerId, x, y);
+        // Сохраняем состояние ПОСЛЕ завершения перетаскивания
         updatePreview();
     }, [onLayerDragEnd, updatePreview]);
-
-    const handleTransformStart = useCallback(() => {
-        console.log('🟡 Workspace: transform started - saving state BEFORE change');
-        // Сохраняем состояние ДО изменения
-        onSaveStateBeforeTransform?.();
-    }, [onSaveStateBeforeTransform]);
 
     // Обработчик завершения трансформации
     const handleTransformEnd = useCallback((transforms: Array<{
@@ -100,8 +100,10 @@ export const Workspace = forwardRef<any, WorkspaceProps>(({
     }>) => {
         console.log('🟡 Workspace: received transforms:', transforms);
         onTransformEnd?.(transforms);
+        // Сохраняем состояние ПОСЛЕ применения трансформации
         setTimeout(() => updatePreview(), 0);
     }, [onTransformEnd, updatePreview]);
+
     // Обёртка для selectLayer
     const handleSelectLayer = useCallback((id: string, multiSelect: boolean) => {
         onSelectLayer?.(id, multiSelect);
@@ -135,7 +137,7 @@ export const Workspace = forwardRef<any, WorkspaceProps>(({
                 {/* Все слои */}
                 {layers.map(layer => (
                     <LayerRenderer
-                        key={layer.id}
+                        key={`${layer.id}-${layer.zIndex}`}
                         layer={layer}
                         isSelected={selectedLayerIds.has(layer.id)}
                         canDrag={canDrag(layer)}
@@ -151,7 +153,6 @@ export const Workspace = forwardRef<any, WorkspaceProps>(({
                     <TransformControls
                         selectedNodeIds={selectedTool === 'select' ? selectedLayerIds : new Set()}
                         layerRefs={layerRefs}
-                        onTransformStart={handleTransformStart}
                         onTransformEnd={handleTransformEnd}
                     />
                 </KonvaLayer>

@@ -1,6 +1,7 @@
 import { Transformer } from 'react-konva';
 import { useEffect, useRef, useCallback } from 'react';
 import Konva from 'konva';
+import { MIN_NODE_SIZE, SELECTION_STROKE } from '../../constants/editor';
 
 interface TransformControlsProps {
     selectedNodeIds: Set<string>;
@@ -19,42 +20,25 @@ interface TransformControlsProps {
 export function TransformControls({
     selectedNodeIds,
     layerRefs,
-    onTransformStart,
     onTransformEnd
 }: TransformControlsProps) {
     const transformerRef = useRef<Konva.Transformer>(null);
-    const skipNextEventRef = useRef(false);
 
     const findNodesByIds = useCallback((ids: Set<string>): Konva.Node[] => {
         const nodes: Konva.Node[] = [];
-        for (const id of ids) {
-            const konvaNode = layerRefs.current.get(id);
-            if (konvaNode) {
-                const children = konvaNode.getChildren();
-                children.forEach(child => {
-                    if (child.name() === id) {
-                        nodes.push(child);
-                    }
-                });
+        layerRefs.current.forEach((konvaLayer, layerId) => {
+            if (ids.has(layerId)) {
+                const child = konvaLayer.findOne(`#${layerId}`);
+                if (child) nodes.push(child);
             }
-        }
+        });
         return nodes;
     }, [layerRefs]);
 
-    const handleTransformStart = useCallback(() => {
-        console.log('🔵 TransformControls: transform START');
-        onTransformStart?.();
-    }, [onTransformStart]);
-
     const handleTransformEnd = useCallback(() => {
-        if (skipNextEventRef.current) {
-            console.log('🔵 Skipping duplicate transform event');
-            skipNextEventRef.current = false;
-            return;
-        }
 
         console.log('🔵 TransformControls handleTransformEnd called');
-        
+
         if (!onTransformEnd || selectedNodeIds.size === 0) return;
         if (!transformerRef.current) return;
 
@@ -64,35 +48,29 @@ export function TransformControls({
         const transforms = nodes.map((node) => {
             const scaleX = node.scaleX();
             const scaleY = node.scaleY();
-            
+
             return {
                 id: node.name(),
                 x: node.x(),
                 y: node.y(),
-                width: node.width() * scaleX,
-                height: node.height() * scaleY,
+                width: Math.max(node.width() * scaleX, MIN_NODE_SIZE),  // ДОБАВЬ Math.max
+                height: Math.max(node.height() * scaleY, MIN_NODE_SIZE), // ДОБАВЬ Math.max
                 rotation: node.rotation(),
             };
         });
 
         console.log('🟢 Sending transforms and resetting scale:', transforms);
-        
+
         // Сначала отправляем новые размеры
         onTransformEnd(transforms);
-        
-        // Затем сбрасываем scale и устанавливаем новые размеры на нодах
-        skipNextEventRef.current = true;
+
         nodes.forEach(node => {
-            const newWidth = node.width() * node.scaleX();
-            const newHeight = node.height() * node.scaleY();
-            node.width(newWidth);
-            node.height(newHeight);
             node.scaleX(1);
             node.scaleY(1);
         });
-        
+
         transformerRef.current.getLayer()?.batchDraw();
-        
+
     }, [selectedNodeIds, onTransformEnd]);
 
     useEffect(() => {
@@ -122,7 +100,7 @@ export function TransformControls({
         <Transformer
             ref={transformerRef}
             boundBoxFunc={(oldBox, newBox) => {
-                if (newBox.width < 10 || newBox.height < 10) {
+                if (newBox.width < MIN_NODE_SIZE || newBox.height < MIN_NODE_SIZE) {
                     return oldBox;
                 }
                 return newBox;
@@ -130,9 +108,8 @@ export function TransformControls({
             rotateEnabled={true}
             resizeEnabled={true}
             keepRatio={false}
-            onTransformStart={handleTransformStart}
             onTransformEnd={handleTransformEnd}
-            borderStroke="#2196F3"
+            borderStroke={SELECTION_STROKE}
             borderStrokeWidth={2}
             anchorFill="#2196F3"
             anchorStroke="#fff"

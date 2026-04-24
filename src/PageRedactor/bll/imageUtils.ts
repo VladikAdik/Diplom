@@ -4,7 +4,9 @@ export const imageToDataURL = (img: HTMLImageElement): string => {
     canvas.height = img.height;
     const ctx = canvas.getContext('2d');
     ctx?.drawImage(img, 0, 0);
-    return canvas.toDataURL();
+    const dataURL = canvas.toDataURL();
+    canvas.remove(); // ← Очистка
+    return dataURL;
 };
 
 export const dataURLToImage = (dataURL: string): Promise<HTMLImageElement> => {

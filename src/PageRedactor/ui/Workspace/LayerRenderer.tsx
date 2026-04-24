@@ -2,6 +2,7 @@ import { memo, useEffect } from 'react';
 import { Layer as KonvaLayer, Image as KonvaImage, Shape as KonvaShape, Text as KonvaText } from 'react-konva';
 import type Konva from 'konva';
 import type { Layer } from '../../types/Layer';
+import { DEFAULT_LAYER_X, DEFAULT_LAYER_Y, SELECTION_STROKE } from '../../constants/editor';
 
 interface LayerRendererProps {
     layer: Layer;
@@ -24,8 +25,9 @@ export const LayerRenderer = memo(({
 }: LayerRendererProps) => {
     // Очистка ref при размонтировании
     useEffect(() => {
+        const refs = layerRefs.current;
         return () => {
-            layerRefs.current.delete(layer.id);
+            refs.delete(layer.id);
         };
     }, [layer.id, layerRefs]);
 
@@ -44,8 +46,9 @@ export const LayerRenderer = memo(({
             {layer.type === 'image' && layer.runtime?.imageElement && (
                 <KonvaImage
                     image={layer.runtime.imageElement}
-                    x={layer.x ?? 100}
-                    y={layer.y ?? 100}
+                    x={layer.x ?? DEFAULT_LAYER_X}
+                    y={layer.y ?? DEFAULT_LAYER_Y}
+                    stroke={isSelected ? SELECTION_STROKE : undefined}
                     width={layer.width}
                     height={layer.height}
                     draggable={canDrag}
@@ -59,7 +62,6 @@ export const LayerRenderer = memo(({
                             onSelect(layer.id, isMultiSelect);
                         }
                     }}
-                    stroke={isSelected ? '#2196F3' : undefined}
                     strokeWidth={isSelected ? 2 : 0}
                     name={layer.id}
                 />
@@ -69,8 +71,9 @@ export const LayerRenderer = memo(({
             {layer.type === 'shape' && layer.runtime?.shapeConfig && (
                 <KonvaShape
                     {...layer.runtime.shapeConfig}
-                    x={layer.x}
-                    y={layer.y}
+                    x={layer.x ?? DEFAULT_LAYER_X}
+                    y={layer.y ?? DEFAULT_LAYER_Y}
+                    stroke={isSelected ? SELECTION_STROKE : undefined}
                     width={layer.width}
                     height={layer.height}
                     rotation={layer.rotation}
@@ -85,7 +88,6 @@ export const LayerRenderer = memo(({
                             onSelect(layer.id, isMultiSelect);
                         }
                     }}
-                    stroke={isSelected ? '#2196F3' : layer.runtime.shapeConfig.stroke}
                     strokeWidth={isSelected ? 2 : layer.runtime.shapeConfig.strokeWidth}
                     name={layer.id}
                 />
@@ -95,8 +97,9 @@ export const LayerRenderer = memo(({
             {layer.type === 'text' && layer.runtime?.textConfig && (
                 <KonvaText
                     {...layer.runtime.textConfig}
-                    x={layer.x}
-                    y={layer.y}
+                    x={layer.x ?? DEFAULT_LAYER_X}
+                    y={layer.y ?? DEFAULT_LAYER_Y}
+                    stroke={isSelected ? SELECTION_STROKE : undefined}
                     width={layer.width}
                     height={layer.height}
                     rotation={layer.rotation}
@@ -111,7 +114,6 @@ export const LayerRenderer = memo(({
                             onSelect(layer.id, isMultiSelect);
                         }
                     }}
-                    stroke={isSelected ? '#2196F3' : undefined}
                     strokeWidth={isSelected ? 2 : 0}
                     name={layer.id}
                 />

@@ -4,7 +4,7 @@ import { SidebarTools } from "./ui/SidebarTools"
 import { Header } from "./ui/Header/Header"
 import { Workspace } from "./ui/Workspace/Workspace"
 import { useState, useCallback, useEffect } from "react"
-import { useLayers } from './bll/useLayers'
+import { useLayerManager } from './bll/useLayerManager';
 
 interface PageRedactorProps {
     image: HTMLImageElement | null;
@@ -23,27 +23,25 @@ export function PageRedactor({ image }: PageRedactorProps) {
         selectAll,
         addImageLayer,
         addShapeLayer,
-        addTextLayer,
         removeLayer,
         toggleVisibility,
         toggleLock,
         updateLayerPosition,
         updateMultipleLayers,
-        saveCurrentState,  // ДОБАВЬ ЭТУ СТРОКУ
         undo,
         redo,
         canUndo,
         canRedo,
         clearAll,
         layerRefs
-    } = useLayers();
+    } = useLayerManager();
 
     // Загружаем начальное изображение при монтировании
     useEffect(() => {
         if (image && layers.length === 0) {
             addImageLayer(image);
         }
-    }, [image]); // Выполнится только при изменении image
+    }, [image, layers.length, addImageLayer]);
 
     // Обработчики клавиатуры
     useEffect(() => {
@@ -112,7 +110,7 @@ export function PageRedactor({ image }: PageRedactorProps) {
 
     // Обработчик перетаскивания слоя
     const handleLayerDragEnd = useCallback((id: string, x: number, y: number) => {
-        updateLayerPosition(id, x, y, undefined, undefined, undefined, false);
+        updateLayerPosition(id, x, y);
     }, [updateLayerPosition]);
 
     // Обработчик трансформации
@@ -126,11 +124,11 @@ export function PageRedactor({ image }: PageRedactorProps) {
     }>) => {
         console.log('🟠 PageRedactor: transform ended:', transforms);
         if (transforms.length > 1) {
-            updateMultipleLayers(transforms, false);
+            updateMultipleLayers(transforms);
         } else if (transforms.length === 1) {
             const { id, x, y, width, height, rotation } = transforms[0];
             console.log('🟠 PageRedactor: calling updateLayerPosition with:', { id, x, y, width, height, rotation });
-            updateLayerPosition(id, x, y, width, height, rotation, false);
+            updateLayerPosition(id, x, y, width, height, rotation);
         }
     }, [updateLayerPosition, updateMultipleLayers]);
 
@@ -165,13 +163,8 @@ export function PageRedactor({ image }: PageRedactorProps) {
             selectedTool={selectedTool}
             onSelectLayer={selectLayer}
             onClearSelection={clearSelection}
-            onSelectAll={selectAll}
             onLayerDragEnd={handleLayerDragEnd}
             onTransformEnd={handleTransformEnd}
-            onSaveStateBeforeTransform={() => {
-                console.log('🟠 PageRedactor: saving state before transform');
-                saveCurrentState(false);
-            }}
             layerRefs={layerRefs}
         />
         <SidebarTools

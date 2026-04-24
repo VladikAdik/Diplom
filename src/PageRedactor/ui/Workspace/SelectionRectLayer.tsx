@@ -1,4 +1,5 @@
 import { Layer as KonvaLayer, Rect } from 'react-konva';
+import { SELECTION_FILL, SELECTION_STROKE, SELECTION_STROKE_WIDTH } from '../../constants/editor';
 
 interface SelectionRectLayerProps {
     isSelecting: boolean;                                    // Идёт ли рисование рамки
@@ -18,9 +19,9 @@ export function SelectionRectLayer({ isSelecting, selectionRect }: SelectionRect
                 y={selectionRect.y}
                 width={selectionRect.width}
                 height={selectionRect.height}
-                fill="rgba(33, 150, 243, 0.2)"
-                stroke="#2196F3"                 // Синяя граница
-                strokeWidth={2}
+                fill={SELECTION_FILL}
+                stroke={SELECTION_STROKE}
+                strokeWidth={SELECTION_STROKE_WIDTH}
                 dash={[5, 5]}                   // Пунктирная линия
                 listening={false}               // Рамка не должна перехватывать события
             />
