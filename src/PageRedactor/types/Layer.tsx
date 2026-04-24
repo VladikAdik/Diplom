@@ -3,6 +3,8 @@ import type Konva from "konva";
 export interface ImageLayerData {
     type: 'image';
     src: string; // dataURL или URL
+    width?: number;   // Добавь
+    height?: number;  // Добавь
 }
 
 export interface ShapeLayerData {
@@ -13,6 +15,8 @@ export interface ShapeLayerData {
     strokeWidth?: number;
     radius?: number; // для circle/ellipse
     points?: number[]; // для line
+    width?: number;   // Добавь
+    height?: number;
 }
 
 export interface TextLayerData {
@@ -22,6 +26,8 @@ export interface TextLayerData {
     fontFamily?: string;
     fill?: string;
     align?: 'left' | 'center' | 'right';
+    width?: number;   // Добавь
+    height?: number;
 }
 
 export type LayerData = ImageLayerData | ShapeLayerData | TextLayerData;

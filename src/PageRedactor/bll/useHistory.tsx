@@ -4,16 +4,25 @@ import { RuntimeFactory } from './runtimeFactory';
 
 interface HistoryState {
     layers: Layer[];
-    selectedLayerIds: Set<string>;
+    selectedLayerIds: string[];
 }
+
+const MAX_HISTORY_SIZE = 50;
 
 export function useHistory() {
     const [historyIndex, setHistoryIndex] = useState(-1);
-    const [historyLength, setHistoryLength] = useState(0);
+    const [canUndo, setCanUndo] = useState(false);
+    const [canRedo, setCanRedo] = useState(false);
     const historyRef = useRef<HistoryState[]>([]);
     const isUndoRedoRef = useRef(false);
+    const lastSavedStateRef = useRef<string>('');
 
-    // Сохранить состояние
+    // Функция обновления флагов
+    const updateFlags = useCallback((index: number, totalLength: number) => {
+        setCanUndo(index > 0);
+        setCanRedo(index < totalLength - 1);
+    }, []);
+
     const saveState = useCallback((layers: Layer[], selectedIds: Set<string>, isIntermediate: boolean = false) => {
         if (isIntermediate) return;
         if (isUndoRedoRef.current) {
@@ -27,66 +36,101 @@ export function useHistory() {
             data: RuntimeFactory.serializeRuntime(layer)
         }));
 
+        const selectedIdsArray = Array.from(selectedIds);
+        const stateString = JSON.stringify({
+            layers: serializedLayers,
+            selectedLayerIds: selectedIdsArray
+        });
+
+        if (stateString === lastSavedStateRef.current) {
+            return;
+        }
+        lastSavedStateRef.current = stateString;
+
+        // ИСПРАВЛЕНИЕ: правильно обрезаем историю
         const newHistory = historyRef.current.slice(0, historyIndex + 1);
         newHistory.push({
             layers: serializedLayers,
-            selectedLayerIds: new Set(selectedIds)
+            selectedLayerIds: selectedIdsArray
         });
 
-        if (newHistory.length > 50) {
+        if (newHistory.length > MAX_HISTORY_SIZE) {
             newHistory.shift();
-            setHistoryIndex(prev => prev - 1);
         }
 
         historyRef.current = newHistory;
-        setHistoryIndex(historyRef.current.length - 1);
-        setHistoryLength(historyRef.current.length);
-    }, [historyIndex]);
-
-    const restoreState = useCallback(async (state: HistoryState): Promise<HistoryState> => {
-        const restoredLayers = await Promise.all(
-            state.layers.map(async (layer) => ({
-                ...layer,
-                runtime: await RuntimeFactory.createRuntime(layer.data)
-            }))
-        );
+        const newIndex = newHistory.length - 1;
+        setHistoryIndex(newIndex);
+        updateFlags(newIndex, newHistory.length);
         
+        console.log('History saved:', {
+            index: newIndex,
+            totalStates: newHistory.length,
+            canUndo: newIndex > 0,
+            canRedo: false
+        });
+    }, [historyIndex, updateFlags]);
+
+    const restoreState = useCallback(async (state: HistoryState): Promise<{
+        layers: Layer[];
+        selectedLayerIds: Set<string>;
+    }> => {
+        const restoredLayers = await Promise.all(
+            state.layers.map(async (layer) => {
+                const runtime = await RuntimeFactory.createRuntime(layer.data);
+                return {
+                    ...layer,
+                    runtime: runtime
+                };
+            })
+        );
+
         return {
             layers: restoredLayers,
-            selectedLayerIds: state.selectedLayerIds
+            selectedLayerIds: new Set(state.selectedLayerIds)
         };
     }, []);
 
-    // Отмена (Ctrl+Z)
-    const undo = useCallback(async (): Promise<HistoryState | null> => {
-        if (historyIndex <= 0) return null;
-        
+    const undo = useCallback(async () => {
+        if (historyIndex <= 0) {
+            console.log('Cannot undo: at beginning');
+            return null;
+        }
+
         isUndoRedoRef.current = true;
         const newIndex = historyIndex - 1;
         setHistoryIndex(newIndex);
-        
-        return await restoreState(historyRef.current[newIndex]);
-    }, [historyIndex, restoreState]);
+        updateFlags(newIndex, historyRef.current.length);
+        lastSavedStateRef.current = JSON.stringify(historyRef.current[newIndex]);
 
-    // Повтор (Ctrl+Y / Ctrl+Shift+Z)
-    const redo = useCallback(async (): Promise<HistoryState | null> => {
-        if (historyIndex >= historyRef.current.length - 1) return null;
-        
+        const restored = await restoreState(historyRef.current[newIndex]);
+        return restored;
+    }, [historyIndex, restoreState, updateFlags]);
+
+    const redo = useCallback(async () => {
+        const historyLength = historyRef.current.length;
+        if (historyIndex >= historyLength - 1) {
+            console.log('Cannot redo: at end');
+            return null;
+        }
+
         isUndoRedoRef.current = true;
         const newIndex = historyIndex + 1;
         setHistoryIndex(newIndex);
-        
-        return await restoreState(historyRef.current[newIndex]);
-    }, [historyIndex, restoreState]);
+        updateFlags(newIndex, historyLength);
+        lastSavedStateRef.current = JSON.stringify(historyRef.current[newIndex]);
 
-    const canUndo = historyIndex > 0;
-    const canRedo = historyIndex < historyLength - 1;
+        const restored = await restoreState(historyRef.current[newIndex]);
+        return restored;
+    }, [historyIndex, restoreState, updateFlags]);
 
-    // Очистить историю
     const clearHistory = useCallback(() => {
+        console.log('Clearing all history');
         historyRef.current = [];
         setHistoryIndex(-1);
-        setHistoryLength(0);
+        setCanUndo(false);
+        setCanRedo(false);
+        lastSavedStateRef.current = '';
     }, []);
 
     return {

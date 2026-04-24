@@ -1,22 +1,32 @@
 import { useState, useCallback, useRef } from 'react';
 import Konva from 'konva';
-import type { Layer, ShapeLayerData } from '../types/Layer';
+import type { Layer } from '../types/Layer';
+import { useHistory } from './useHistory';
 
-export function useLayers(onStateChange?: (layers: Layer[], selectedIds: Set<string>, isIntermediate?: boolean) => void) {
+export function useLayers() {
     const [layers, setLayers] = useState<Layer[]>([]);
     const [selectedLayerIds, setSelectedLayerIds] = useState<Set<string>>(new Set());
     const layerRefs = useRef<Map<string, Konva.Layer>>(new Map());
+    const { saveState, undo: undoHistory, redo: redoHistory, canUndo, canRedo, clearHistory } = useHistory();
 
-    // Генерация уникального ID
     const generateId = useCallback(() => {
         return `${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
     }, []);
 
-    const notifyChange = useCallback((newLayers: Layer[], newSelectedIds: Set<string>, isIntermediate: boolean = false) => {
-        onStateChange?.(newLayers, newSelectedIds, isIntermediate);
-    }, [onStateChange]);
+    const saveCurrentStateInternal = useCallback((newLayers: Layer[], newSelectedIds: Set<string>, isIntermediate: boolean = false) => {
+        saveState(newLayers, newSelectedIds, isIntermediate);
+    }, [saveState]);
 
-    // Добавить слой
+    const saveCurrentState = useCallback((isIntermediate: boolean = false) => {
+        setLayers(currentLayers => {
+            setSelectedLayerIds(currentSelectedIds => {
+                saveState(currentLayers, currentSelectedIds, isIntermediate);
+                return currentSelectedIds;
+            });
+            return currentLayers;
+        });
+    }, [saveState]);
+
     const addLayer = useCallback((layer: Omit<Layer, 'id' | 'zIndex'>) => {
         setLayers(prev => {
             const newLayer: Layer = {
@@ -27,13 +37,13 @@ export function useLayers(onStateChange?: (layers: Layer[], selectedIds: Set<str
                 data: layer.data
             };
             const newLayers = [...prev, newLayer];
-            notifyChange(newLayers, selectedLayerIds, false);
+            saveCurrentStateInternal(newLayers, selectedLayerIds);
             return newLayers;
         });
-    }, [generateId, notifyChange, selectedLayerIds]);
+    }, [generateId, saveCurrentStateInternal, selectedLayerIds]);
 
     const addImageLayer = useCallback((image: HTMLImageElement, x: number = 100, y: number = 100) => {
-        const newLayer: Omit<Layer, 'id' | 'zIndex'> = {
+        addLayer({
             name: `Изображение ${layers.length + 1}`,
             visible: true,
             locked: false,
@@ -44,14 +54,13 @@ export function useLayers(onStateChange?: (layers: Layer[], selectedIds: Set<str
             width: image.width,
             height: image.height,
             rotation: 0,
-            data: { type: 'image', src: '' }, // временно
+            data: { type: 'image', src: '', width: image.width, height: image.height },
             runtime: { imageElement: image }
-        };
-        addLayer(newLayer);
+        });
     }, [layers.length, addLayer]);
 
-    const addShapeLayer = useCallback((shapeType: ShapeLayerData['shapeType'], x: number = 100, y: number = 100) => {
-        const newLayer: Omit<Layer, 'id' | 'zIndex'> = {
+    const addShapeLayer = useCallback((shapeType: 'rect' | 'circle' | 'ellipse' | 'line', x: number = 100, y: number = 100) => {
+        addLayer({
             name: `${shapeType} ${layers.length + 1}`,
             visible: true,
             locked: false,
@@ -64,17 +73,18 @@ export function useLayers(onStateChange?: (layers: Layer[], selectedIds: Set<str
             rotation: 0,
             data: {
                 type: 'shape',
-                shapeType,
+                shapeType: shapeType,
                 fill: '#cccccc',
                 stroke: '#000000',
-                strokeWidth: 2
+                strokeWidth: 2,
+                width: 100,
+                height: 100
             }
-        };
-        addLayer(newLayer);
+        });
     }, [layers.length, addLayer]);
 
     const addTextLayer = useCallback((text: string = 'Новый текст', x: number = 100, y: number = 100) => {
-        const newLayer: Omit<Layer, 'id' | 'zIndex'> = {
+        addLayer({
             name: `Текст ${layers.length + 1}`,
             visible: true,
             locked: false,
@@ -91,43 +101,37 @@ export function useLayers(onStateChange?: (layers: Layer[], selectedIds: Set<str
                 fontSize: 16,
                 fontFamily: 'Arial',
                 fill: '#000000',
-                align: 'left'
+                align: 'left',
+                width: 200,
+                height: 50
             }
-        };
-        addLayer(newLayer);
+        });
     }, [layers.length, addLayer]);
 
-    // Удалить слой
     const removeLayer = useCallback((id: string) => {
         setLayers(prev => {
             const newLayers = prev.filter(l => l.id !== id);
             layerRefs.current.delete(id);
-
-            const newSelectedIds = new Set(selectedLayerIds);
-            newSelectedIds.delete(id);
-
-            notifyChange(newLayers, newSelectedIds, false);
-            setSelectedLayerIds(newSelectedIds);
+            
+            setSelectedLayerIds(prevSelected => {
+                const newSelectedIds = new Set(prevSelected);
+                newSelectedIds.delete(id);
+                saveCurrentStateInternal(newLayers, newSelectedIds);
+                return newSelectedIds;
+            });
+            
             return newLayers;
         });
-    }, [selectedLayerIds, notifyChange]);
+    }, [saveCurrentStateInternal]);
 
-    // Выделить слой (НЕ сохраняем в историю)
     const selectLayer = useCallback((id: string, multiSelect: boolean = false) => {
         setSelectedLayerIds(prev => {
-            const newSet = new Set(prev);
-
-            if (multiSelect) {
-                if (newSet.has(id)) {
-                    newSet.delete(id);
-                } else {
-                    newSet.add(id);
-                }
+            const newSet = new Set(multiSelect ? prev : []);
+            if (multiSelect && newSet.has(id)) {
+                newSet.delete(id);
             } else {
-                newSet.clear();
                 newSet.add(id);
             }
-
             return newSet;
         });
     }, []);
@@ -140,65 +144,52 @@ export function useLayers(onStateChange?: (layers: Layer[], selectedIds: Set<str
         setSelectedLayerIds(new Set(layers.map(l => l.id)));
     }, [layers]);
 
-    // Переключить видимость
     const toggleVisibility = useCallback((id: string) => {
         setLayers(prev => {
             const newLayers = prev.map(layer =>
-                layer.id === id
-                    ? { ...layer, visible: !layer.visible }
-                    : layer
+                layer.id === id ? { ...layer, visible: !layer.visible } : layer
             );
-            notifyChange(newLayers, selectedLayerIds, false);
+            saveCurrentStateInternal(newLayers, selectedLayerIds);
             return newLayers;
         });
-    }, [selectedLayerIds, notifyChange]);
+    }, [selectedLayerIds, saveCurrentStateInternal]);
 
-    // Заблокировать/разблокировать
     const toggleLock = useCallback((id: string) => {
         setLayers(prev => {
             const newLayers = prev.map(layer =>
-                layer.id === id
-                    ? { ...layer, locked: !layer.locked }
-                    : layer
+                layer.id === id ? { ...layer, locked: !layer.locked } : layer
             );
-            notifyChange(newLayers, selectedLayerIds, false);
+            saveCurrentStateInternal(newLayers, selectedLayerIds);
             return newLayers;
         });
-    }, [selectedLayerIds, notifyChange]);
+    }, [selectedLayerIds, saveCurrentStateInternal]);
 
-    // Изменить прозрачность
     const setOpacity = useCallback((id: string, opacity: number) => {
         setLayers(prev => {
             const newLayers = prev.map(layer =>
-                layer.id === id
-                    ? { ...layer, opacity }
-                    : layer
+                layer.id === id ? { ...layer, opacity } : layer
             );
-            notifyChange(newLayers, selectedLayerIds, false);
 
-            // Обновляем Konva узел
             const konvaLayer = layerRefs.current.get(id);
             if (konvaLayer) {
                 konvaLayer.opacity(opacity);
                 konvaLayer.getLayer()?.batchDraw();
             }
 
+            saveCurrentStateInternal(newLayers, selectedLayerIds);
             return newLayers;
         });
-    }, [selectedLayerIds, notifyChange]);
+    }, [selectedLayerIds, saveCurrentStateInternal]);
 
-    // Переместить слой вверх/вниз
     const moveLayer = useCallback((id: string, direction: 'up' | 'down') => {
         setLayers(prev => {
             const index = prev.findIndex(l => l.id === id);
             if (index === -1) return prev;
-
             if (direction === 'up' && index === prev.length - 1) return prev;
             if (direction === 'down' && index === 0) return prev;
 
             const newIndex = direction === 'up' ? index + 1 : index - 1;
             const newLayers = [...prev];
-
             [newLayers[index], newLayers[newIndex]] = [newLayers[newIndex], newLayers[index]];
 
             const reindexedLayers = newLayers.map((layer, idx) => ({
@@ -206,21 +197,12 @@ export function useLayers(onStateChange?: (layers: Layer[], selectedIds: Set<str
                 zIndex: idx
             }));
 
-            notifyChange(reindexedLayers, selectedLayerIds, false);
+            saveCurrentStateInternal(reindexedLayers, selectedLayerIds);
             return reindexedLayers;
         });
-    }, [selectedLayerIds, notifyChange]);
+    }, [selectedLayerIds, saveCurrentStateInternal]);
 
-    // Обновить позицию слоя (после перетаскивания или трансформации)
-    const updateLayerPosition = useCallback((
-        id: string,
-        x: number,
-        y: number,
-        width?: number,
-        height?: number,
-        rotation?: number,
-        isIntermediate: boolean = false
-    ) => {
+    const updateLayerPosition = useCallback((id: string, x: number, y: number, width?: number, height?: number, rotation?: number, isIntermediate: boolean = false) => {
         setLayers(prev => {
             const newLayers = prev.map(layer =>
                 layer.id === id
@@ -230,30 +212,33 @@ export function useLayers(onStateChange?: (layers: Layer[], selectedIds: Set<str
                         y,
                         ...(width !== undefined && { width }),
                         ...(height !== undefined && { height }),
-                        ...(rotation !== undefined && { rotation })
+                        ...(rotation !== undefined && { rotation }),
+                        data: {
+                            ...layer.data,
+                            ...(width !== undefined && { width }),
+                            ...(height !== undefined && { height })
+                        }
                     }
                     : layer
             );
-            notifyChange(newLayers, selectedLayerIds, isIntermediate);
+
+            if (!isIntermediate) {
+                saveCurrentStateInternal(newLayers, selectedLayerIds, false);
+            }
             return newLayers;
         });
-    }, [selectedLayerIds, notifyChange]);
+    }, [selectedLayerIds, saveCurrentStateInternal]);
 
-    // Обновить несколько слоёв сразу (для batch операций)
-    const updateMultipleLayers = useCallback((
-        updates: Array<{
-            id: string;
-            x?: number;
-            y?: number;
-            width?: number;
-            height?: number;
-            rotation?: number;
-        }>,
-        isIntermediate: boolean = false
-    ) => {
+    const updateMultipleLayers = useCallback((updates: Array<{
+        id: string;
+        x?: number;
+        y?: number;
+        width?: number;
+        height?: number;
+        rotation?: number;
+    }>, isIntermediate: boolean = false) => {
         setLayers(prev => {
             let newLayers = [...prev];
-
             updates.forEach(update => {
                 newLayers = newLayers.map(layer =>
                     layer.id === update.id
@@ -263,34 +248,34 @@ export function useLayers(onStateChange?: (layers: Layer[], selectedIds: Set<str
                             ...(update.y !== undefined && { y: update.y }),
                             ...(update.width !== undefined && { width: update.width }),
                             ...(update.height !== undefined && { height: update.height }),
-                            ...(update.rotation !== undefined && { rotation: update.rotation })
+                            ...(update.rotation !== undefined && { rotation: update.rotation }),
+                            data: {
+                                ...layer.data,
+                                ...(update.width !== undefined && { width: update.width }),
+                                ...(update.height !== undefined && { height: update.height })
+                            }
                         }
                         : layer
                 );
             });
 
-            notifyChange(newLayers, selectedLayerIds, isIntermediate);
+            if (!isIntermediate) {
+                saveCurrentStateInternal(newLayers, selectedLayerIds, false);
+            }
             return newLayers;
         });
-    }, [selectedLayerIds, notifyChange]);
+    }, [selectedLayerIds, saveCurrentStateInternal]);
 
-    // Восстановить состояние (для undo/redo)
     const restoreState = useCallback((newLayers: Layer[], newSelectedIds: Set<string>) => {
         setLayers(newLayers);
         setSelectedLayerIds(newSelectedIds);
     }, []);
 
-    // Получить слой по ID
-    const getLayer = useCallback((id: string) => {
-        return layers.find(l => l.id === id);
-    }, [layers]);
-
-    // Дублировать слой
     const duplicateLayer = useCallback((id: string) => {
         const layerToDuplicate = layers.find(l => l.id === id);
         if (!layerToDuplicate) return;
 
-        const duplicatedLayer: Omit<Layer, 'id' | 'zIndex'> = {
+        addLayer({
             name: `${layerToDuplicate.name} (копия)`,
             visible: layerToDuplicate.visible,
             locked: false,
@@ -302,10 +287,33 @@ export function useLayers(onStateChange?: (layers: Layer[], selectedIds: Set<str
             width: layerToDuplicate.width,
             height: layerToDuplicate.height,
             rotation: layerToDuplicate.rotation
-        };
-
-        addLayer(duplicatedLayer);
+        });
     }, [layers, addLayer]);
+
+    const undo = useCallback(async () => {
+        const state = await undoHistory();
+        if (state) {
+            layerRefs.current.clear();
+            setLayers(state.layers);
+            setSelectedLayerIds(state.selectedLayerIds);
+        }
+    }, [undoHistory]);
+
+    const redo = useCallback(async () => {
+        const state = await redoHistory();
+        if (state) {
+            layerRefs.current.clear();
+            setLayers(state.layers);
+            setSelectedLayerIds(state.selectedLayerIds);
+        }
+    }, [redoHistory]);
+
+    const clearAll = useCallback(() => {
+        setLayers([]);
+        setSelectedLayerIds(new Set());
+        layerRefs.current.clear();
+        clearHistory();
+    }, [clearHistory]);
 
     return {
         layers,
@@ -326,8 +334,13 @@ export function useLayers(onStateChange?: (layers: Layer[], selectedIds: Set<str
         moveLayer,
         updateLayerPosition,
         updateMultipleLayers,
+        saveCurrentState,
         restoreState,
-        getLayer,
-        duplicateLayer
+        duplicateLayer,
+        undo,
+        redo,
+        canUndo,
+        canRedo,
+        clearAll
     };
 }

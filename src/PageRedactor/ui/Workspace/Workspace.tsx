@@ -1,7 +1,6 @@
 import { forwardRef, useImperativeHandle, useEffect, useCallback, useRef } from 'react';
 import { Stage, Layer as KonvaLayer } from 'react-konva';
 import { useWorkspaceLogic } from '../../bll/useWorkspaceLogic';
-import { useLayers } from '../../bll/useLayers';
 import { type Layer } from '../../types/Layer';
 import { TransformControls } from './TransformControls';
 import { useSelectionRect } from './useSelectionRect';
@@ -9,108 +8,88 @@ import { SelectionRectLayer } from './SelectionRectLayer';
 import { LayerRenderer } from './LayerRenderer';
 
 interface WorkspaceProps {
+    layers: Layer[];
+    selectedLayerIds: Set<string>;
     image?: HTMLImageElement | null;
     onUpdate?: (url: string) => void;
-    onLayersChange?: (layers: Layer[]) => void;
-    onSelectionChange?: (ids: Set<string>) => void;
     selectedTool?: string;
-    onStateChange?: (layers: Layer[], selectedIds: Set<string>, isIntermediate?: boolean) => void;
+    onSelectLayer?: (id: string, multiSelect?: boolean) => void;
+    onClearSelection?: () => void;
+    onSelectAll?: () => void;
+    onLayerDragEnd?: (id: string, x: number, y: number) => void;
+    onTransformEnd?: (transforms: Array<{
+        id: string;
+        x: number;
+        y: number;
+        width: number;
+        height: number;
+        rotation: number;
+    }>) => void;
+    onSaveStateBeforeTransform?: () => void;
+    layerRefs?: React.MutableRefObject<Map<string, any>>;
+    onStageReady?: (stage: any) => void;
 }
 
-// Методы, которые будут доступны родителю (PageRedactor) через ref
-export interface WorkspaceRef {
-    addImage: (newImage: HTMLImageElement) => void;
-    addLayer: () => void;
-    getLayers: () => Layer[];
-    selectLayer: (id: string, multiSelect?: boolean) => void;
-    toggleVisibility: (id: string) => void;
-    toggleLock: (id: string) => void;
-    removeLayer: (id: string) => void;
-    resetView: () => void;
-    restoreState: (layers: Layer[], selectedIds: Set<string>) => void;
-}
-
-export const Workspace = forwardRef<WorkspaceRef, WorkspaceProps>(({
+export const Workspace = forwardRef<any, WorkspaceProps>(({
+    layers,
+    selectedLayerIds,
     image,
     onUpdate,
-    onLayersChange,
-    onSelectionChange,
-    selectedTool = 'select',  // По умолчанию инструмент выделения
-    onStateChange
+    selectedTool = 'select',
+    onSelectLayer,
+    onClearSelection,
+    onSelectAll,
+    onLayerDragEnd,
+    onTransformEnd,
+    onSaveStateBeforeTransform,
+    layerRefs: externalLayerRefs,
+    onStageReady
 }, ref) => {
-    // Предотвращает повторную загрузку начального изображения при ререндерах
     const initialImageLoadedRef = useRef(false);
-
-    // Хук для управления зумом, панорамированием и созданием превью
     const { stageRef, handleWheel, resetView, updatePreview } = useWorkspaceLogic({ onUpdate });
 
-    // Хук для управления слоями (добавление, удаление, выделение и т.д.)
-    const {
-        layers,
-        selectedLayerIds,
-        selectLayer,
-        clearSelection,
-        layerRefs,
-        addLayer,
-        removeLayer,
-        toggleVisibility,
-        toggleLock,
-        updateLayerPosition,
-        restoreState,
-    } = useLayers(onStateChange);
+    // Внутренние refs для слоёв, если не переданы снаружи
+    const internalLayerRefs = useRef<Map<string, any>>(new Map());
+    const layerRefs = externalLayerRefs || internalLayerRefs;
 
-    // Хук для выделения рамкой (клик + перетаскивание на пустом месте)
+    // Хук для выделения рамкой
     const { isSelecting, selectionRect } = useSelectionRect({
         stageRef,
         selectedTool,
         layers,
-        clearSelection,
-        selectLayer
+        clearSelection: onClearSelection || (() => { }),
+        selectLayer: onSelectLayer || (() => { })
     });
 
-    // Уведомляем родителя об изменении списка слоёв
+    // Уведомляем родителя о готовности stage (если нужно)
     useEffect(() => {
-        onLayersChange?.(layers);
-    }, [layers, onLayersChange]);
+        if (stageRef.current) {
+            onStageReady?.(stageRef.current);
+        }
+    }, [stageRef, onStageReady]);
 
-    // Уведомляем родителя об изменении выделенных слоёв
-    useEffect(() => {
-        onSelectionChange?.(selectedLayerIds);
-    }, [selectedLayerIds, onSelectionChange]);
-
-    // При монтировании: если передано изображение, создаём базовый слой
+    // При монтировании: если передано изображение, создаём базовый слой через пропсы
     useEffect(() => {
         if (image && !initialImageLoadedRef.current && layers.length === 0) {
             initialImageLoadedRef.current = true;
-            addLayer({
-                name: 'Базовое изображение',
-                visible: true,
-                locked: false,
-                opacity: 1,
-                type: 'image',
-                x: 100,
-                y: 100,
-                width: image.width,
-                height: image.height,
-                rotation: 0,
-                data: {
-                    type: 'image',
-                    src: ''  // временно
-                },
-                runtime: {
-                    imageElement: image
-                }
-            });
+            // Это должно обрабатываться родителем через addImageLayer
+            console.warn('Image provided but no layers - use addImageLayer from useLayers');
         }
-    }, [image, addLayer, layers.length]);
+    }, [image, layers.length]);
 
     // Обработчик завершения перетаскивания слоя
     const handleImageDragEnd = useCallback((layerId: string, x: number, y: number) => {
-        updateLayerPosition(layerId, x, y, undefined, undefined, undefined, false);
-        updatePreview(); // Обновляем превью после перемещения
-    }, [updateLayerPosition, updatePreview]);
+        onLayerDragEnd?.(layerId, x, y);
+        updatePreview();
+    }, [onLayerDragEnd, updatePreview]);
 
-    // Обработчик завершения трансформации (масштабирование/поворот)
+    const handleTransformStart = useCallback(() => {
+        console.log('🟡 Workspace: transform started - saving state BEFORE change');
+        // Сохраняем состояние ДО изменения
+        onSaveStateBeforeTransform?.();
+    }, [onSaveStateBeforeTransform]);
+
+    // Обработчик завершения трансформации
     const handleTransformEnd = useCallback((transforms: Array<{
         id: string;
         x: number;
@@ -119,69 +98,26 @@ export const Workspace = forwardRef<WorkspaceRef, WorkspaceProps>(({
         height: number;
         rotation: number;
     }>) => {
-        // Применяем новые координаты и размеры ко всем трансформированным слоям
-        transforms.forEach(({ id, x, y, width, height, rotation }) => {
-            updateLayerPosition(id, x, y, width, height, rotation, false);
-        });
-        setTimeout(() => updatePreview(), 0); // Асинхронное обновление превью
-    }, [updateLayerPosition, updatePreview]);
-
-    // Обёртка для selectLayer (для совместимости с LayerRenderer)
+        console.log('🟡 Workspace: received transforms:', transforms);
+        onTransformEnd?.(transforms);
+        setTimeout(() => updatePreview(), 0);
+    }, [onTransformEnd, updatePreview]);
+    // Обёртка для selectLayer
     const handleSelectLayer = useCallback((id: string, multiSelect: boolean) => {
-        selectLayer(id, multiSelect);
-    }, [selectLayer]);
+        onSelectLayer?.(id, multiSelect);
+    }, [onSelectLayer]);
 
-    // Экспортируем методы для родительского компонента (PageRedactor)
+    // Экспортируем методы через ref (для обратной совместимости)
     useImperativeHandle(ref, () => ({
-        addImage: (newImage: HTMLImageElement) => {
-            addLayer({
-                name: `Изображение ${layers.length + 1}`,
-                visible: true,
-                locked: false,
-                opacity: 1,
-                type: 'image',
-                x: 100,
-                y: 100,
-                width: newImage.width,
-                height: newImage.height,
-                rotation: 0,
-                data: {
-                    type: 'image',
-                    src: ''  // временно, будет заполнено при сериализации
-                },
-                runtime: {
-                    imageElement: newImage  // ✅ сохраняем изображение
-                }
-            });
-        },
-        getLayers: () => layers,
-        selectLayer: (id: string, multiSelect: boolean = false) => selectLayer(id, multiSelect),
-        toggleVisibility: (id: string) => toggleVisibility(id),
-        toggleLock: (id: string) => toggleLock(id),
-        removeLayer: (id: string) => removeLayer(id),
-        addLayer: () => {
-            addLayer({
-                name: `Слой ${layers.length + 1}`,
-                visible: true,
-                locked: false,
-                opacity: 1,
-                type: 'shape',
-                data: {
-                    type: 'shape',
-                    shapeType: 'rect',
-                    fill: '#cccccc',
-                    stroke: '#000000',
-                    strokeWidth: 2
-                },
-                x: 100,
-                y: 100
-            });
-        },
-        resetView: resetView,
-        restoreState: (newLayers: Layer[], newSelectedIds: Set<string>) => {
-            restoreState(newLayers, newSelectedIds);
-        }
-    }), [layers, addLayer, toggleVisibility, toggleLock, removeLayer, resetView, selectLayer, restoreState]);
+        resetView,
+        updatePreview,
+        getStage: () => stageRef.current
+    }), [resetView, updatePreview, stageRef]);
+
+    // Вычисляем, можно ли перетаскивать слой
+    const canDrag = useCallback((layer: Layer) => {
+        return !layer.locked && selectedTool === 'select';
+    }, [selectedTool]);
 
     return (
         <div style={{ width: '100%', height: 'calc(100vh - 100px)', overflow: 'hidden' }}>
@@ -196,13 +132,13 @@ export const Workspace = forwardRef<WorkspaceRef, WorkspaceProps>(({
                     cursor: selectedTool === 'select' ? 'default' : 'crosshair'
                 }}
             >
-                {/* Все слои с изображениями */}
+                {/* Все слои */}
                 {layers.map(layer => (
                     <LayerRenderer
                         key={layer.id}
                         layer={layer}
                         isSelected={selectedLayerIds.has(layer.id)}
-                        canDrag={!layer.locked && selectedTool === 'select'}
+                        canDrag={canDrag(layer)}
                         onDragEnd={handleImageDragEnd}
                         onSelect={handleSelectLayer}
                         selectedTool={selectedTool}
@@ -210,16 +146,17 @@ export const Workspace = forwardRef<WorkspaceRef, WorkspaceProps>(({
                     />
                 ))}
 
-                {/* Контролы трансформации (рамка с якорями) */}
+                {/* Контролы трансформации */}
                 <KonvaLayer>
                     <TransformControls
                         selectedNodeIds={selectedTool === 'select' ? selectedLayerIds : new Set()}
                         layerRefs={layerRefs}
+                        onTransformStart={handleTransformStart}
                         onTransformEnd={handleTransformEnd}
                     />
                 </KonvaLayer>
 
-                {/* Визуальная рамка выделения (рисуется поверх всего) */}
+                {/* Рамка выделения */}
                 <SelectionRectLayer isSelecting={isSelecting} selectionRect={selectionRect} />
             </Stage>
         </div>

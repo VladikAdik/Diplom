@@ -7,8 +7,17 @@ export class RuntimeFactory {
     static async createRuntime(data: Layer['data']): Promise<LayerRuntime> {
         switch (data.type) {
             case 'image': {
-                const img = await dataURLToImage(data.src);
-                return { imageElement: img };
+                if (!data.src) {
+                    console.warn('Image layer has no src, creating empty runtime');
+                    return {};
+                }
+                try {
+                    const img = await dataURLToImage(data.src);
+                    return { imageElement: img };
+                } catch (error) {
+                    console.error('Failed to restore image:', error);
+                    return {};
+                }
             }
 
             case 'shape': {
@@ -16,12 +25,12 @@ export class RuntimeFactory {
                     fill: data.fill || '#cccccc',
                     stroke: data.stroke || '#000000',
                     strokeWidth: data.strokeWidth || 2,
+                    width: data.width,
+                    height: data.height,
                 };
                 
                 switch (data.shapeType) {
                     case 'rect':
-                        shapeConfig.width = 100;
-                        shapeConfig.height = 100;
                         break;
                     case 'circle':
                         shapeConfig.radius = data.radius || 50;
@@ -47,7 +56,7 @@ export class RuntimeFactory {
                         fontFamily: data.fontFamily || 'Arial',
                         fill: data.fill || '#000000',
                         align: data.align || 'left',
-                        width: 200,
+                        width: data.width || 200,
                     }
                 };
             }
@@ -59,9 +68,13 @@ export class RuntimeFactory {
     // Сериализовать runtime объект в данные
     static serializeRuntime(layer: Layer): Layer['data'] {
         if (layer.type === 'image' && layer.runtime?.imageElement) {
+            const src = imageToDataURL(layer.runtime.imageElement);
+            console.log('Serializing image layer, src length:', src.length);
             return {
                 type: 'image',
-                src: imageToDataURL(layer.runtime.imageElement)
+                src: src,
+                width: layer.width,
+                height: layer.height
             };
         }
         
@@ -69,10 +82,12 @@ export class RuntimeFactory {
             const config = layer.runtime.shapeConfig;
             return {
                 type: 'shape',
-                shapeType: 'rect', // по умолчанию
+                shapeType: (layer.data as any).shapeType || 'rect',
                 fill: config.fill as string,
                 stroke: config.stroke as string,
                 strokeWidth: config.strokeWidth as number,
+                width: layer.width,
+                height: layer.height
             };
         }
         
@@ -85,6 +100,8 @@ export class RuntimeFactory {
                 fontFamily: config.fontFamily as string,
                 fill: config.fill as string,
                 align: config.align as 'left' | 'center' | 'right',
+                width: layer.width,
+                height: layer.height
             };
         }
         
