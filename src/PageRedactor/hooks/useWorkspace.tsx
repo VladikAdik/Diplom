@@ -57,22 +57,22 @@ export function useWorkspaceLogic({ onUpdate }: WorkspaceLogicProps) {
     }, []);
 
     // Ресайз окна
-    useEffect(() => {
-        const handleResize = () => {
-            if (!stageRef.current) return;
+    // useEffect(() => {
+    //     const handleResize = () => {
+    //         if (!stageRef.current) return;
             
-            const stageWidth = window.innerWidth;
-            const stageHeight = window.innerHeight - STAGE_PADDING_BOTTOM;
+    //         const stageWidth = window.innerWidth;
+    //         const stageHeight = window.innerHeight - STAGE_PADDING_BOTTOM;
             
-            stageRef.current.width(stageWidth);
-            stageRef.current.height(stageHeight);
-            stageRef.current.batchDraw();
+    //         stageRef.current.width(stageWidth);
+    //         stageRef.current.height(stageHeight);
+    //         stageRef.current.batchDraw();
             
-        };
+    //     };
         
-        window.addEventListener('resize', handleResize);
-        return () => window.removeEventListener('resize', handleResize);
-    }, []);
+    //     window.addEventListener('resize', handleResize);
+    //     return () => window.removeEventListener('resize', handleResize);
+    // }, []);
 
     // Сброс вида (центрировать всё)
     const resetView = useCallback(() => {

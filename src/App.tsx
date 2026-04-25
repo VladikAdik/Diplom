@@ -1,5 +1,5 @@
 import { PageStart } from "./PageStart/PageStart";
-import { PageRedactor } from "./PageRedactor/PageRedactor";
+import { PageRedactor } from "./PageRedactor/ui/PageRedactor";
 import { useState } from "react";
 
 export function App() {

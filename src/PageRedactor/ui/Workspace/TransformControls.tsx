@@ -24,19 +24,29 @@ export function TransformControls({
 }: TransformControlsProps) {
     const transformerRef = useRef<Konva.Transformer>(null);
 
+    // -----------------------------------------
+    // Утилиты
+    // -----------------------------------------
+
     const findNodesByIds = useCallback((ids: Set<string>): Konva.Node[] => {
-    const nodes: Konva.Node[] = [];
-    ids.forEach(id => {
-        const group = layerRefs.current.get(id);
-        if (group) nodes.push(group);
-    });
-    return nodes;
-}, [layerRefs]);
+        const nodes: Konva.Node[] = [];
+        ids.forEach(id => {
+            const group = layerRefs.current.get(id);
+            if (group) {
+                console.log(`Found node ${id}:`, group.getClientRect());
+                nodes.push(group);
+            } else {
+                console.warn(`Node ${id} not found`);
+            }
+        });
+        return nodes;
+    }, [layerRefs]);
+
+    // -----------------------------------------
+    // Обработчик завершения трансформации
+    // -----------------------------------------
 
     const handleTransformEnd = useCallback(() => {
-
-        console.log('🔵 TransformControls handleTransformEnd called');
-
         if (!onTransformEnd || selectedNodeIds.size === 0) return;
         if (!transformerRef.current) return;
 
@@ -51,13 +61,11 @@ export function TransformControls({
                 id: node.name(),
                 x: node.x(),
                 y: node.y(),
-                width: Math.max(node.width() * scaleX, MIN_NODE_SIZE),  // ДОБАВЬ Math.max
-                height: Math.max(node.height() * scaleY, MIN_NODE_SIZE), // ДОБАВЬ Math.max
+                width: Math.max(node.width() * scaleX, MIN_NODE_SIZE),
+                height: Math.max(node.height() * scaleY, MIN_NODE_SIZE),
                 rotation: node.rotation(),
             };
         });
-
-        console.log('🟢 Sending transforms and resetting scale:', transforms);
 
         // Сначала отправляем новые размеры
         onTransformEnd(transforms);

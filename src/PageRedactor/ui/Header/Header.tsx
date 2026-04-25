@@ -14,6 +14,8 @@ interface HeaderProps {
     onClearAll?: () => void;
     onShowShortcuts?: () => void;
     onShowAbout?: () => void;
+    onFitToContent?: () => void;
+    onSetCustomSize?: () => void; 
 }
 
 export function Header({
@@ -25,10 +27,11 @@ export function Header({
     onRedo,
     canUndo,
     canRedo,
-    onDelete,
+    //onDelete,
     onClearAll,
     onShowShortcuts,
-    onShowAbout
+    onShowAbout,
+    onSetCustomSize
 }: HeaderProps) {
 
     return <div style={{ display: 'flex' }}>
@@ -42,7 +45,7 @@ export function Header({
         <HeaderTab title="Редактировать">
             <HeaderTabItem onClick={onUndo}>↩ Отменить (Ctrl+Z) {!canUndo && '(недоступно)'} </HeaderTabItem>
             <HeaderTabItem onClick={onRedo}>↪ Повторить (Ctrl+Y) {!canRedo && '(недоступно)'}</HeaderTabItem>
-            <HeaderTabItem onClick={onDelete}>🗑 Удалить выделенное (Delete)</HeaderTabItem>
+            <HeaderTabItem onClick={onSetCustomSize}>📏 Задать размер холста</HeaderTabItem>
             <HeaderTabItem onClick={onClearAll}>🧹 Очистить всё</HeaderTabItem>
         </HeaderTab>
 

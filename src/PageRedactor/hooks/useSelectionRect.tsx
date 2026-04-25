@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from 'react';
 import type Konva from 'konva';
-import type { Layer } from '../../types/Layer';
-import { DEFAULT_LAYER_X, DEFAULT_LAYER_Y, DEFAULT_SHAPE_WIDTH } from '../../constants/editor';
+import type { Layer } from '../types/Layer';
+import { DEFAULT_LAYER_X, DEFAULT_LAYER_Y, DEFAULT_SHAPE_WIDTH } from '../constants/editor';
 
 interface UseSelectionRectProps {
     stageRef: React.RefObject<Konva.Stage | null>;

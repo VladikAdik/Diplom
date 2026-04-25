@@ -5,7 +5,13 @@ export const imageToDataURL = (img: HTMLImageElement): string => {
     const ctx = canvas.getContext('2d');
     ctx?.drawImage(img, 0, 0);
     const dataURL = canvas.toDataURL();
-    canvas.remove(); // ← Очистка
+    
+    // Очистка
+    ctx?.clearRect(0, 0, canvas.width, canvas.height);
+    canvas.width = 0;
+    canvas.height = 0;
+    canvas.remove();
+    
     return dataURL;
 };
 

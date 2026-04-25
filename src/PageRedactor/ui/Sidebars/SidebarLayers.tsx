@@ -1,5 +1,5 @@
 import { memo } from 'react';
-import  { type Layer } from '../types/Layer'
+import  { type Layer } from '../../types/Layer'
 
 interface SidebarLayersProps {
     layers?: Layer[];

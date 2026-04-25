@@ -37,3 +37,6 @@ export const ZOOM_STEP = 0.1;
 
 // ====== STAGE ======
 export const STAGE_PADDING_BOTTOM = 100;
+export const WORKSPACE_PADDING = 50;
+export const DEFAULT_STAGE_WIDTH = 800;
+export const DEFAULT_STAGE_HEIGHT = 600;
