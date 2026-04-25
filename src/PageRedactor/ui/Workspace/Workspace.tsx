@@ -31,7 +31,7 @@ interface WorkspaceProps {
         height: number;
         rotation: number;
     }>) => void;
-    layerRefs?: React.MutableRefObject<Map<string, Konva.Layer>>;
+    layerRefs?: React.MutableRefObject<Map<string, Konva.Group>>;
     onStageReady?: (stage: Konva.Stage) => void;
 }
 
@@ -52,7 +52,7 @@ export const Workspace = forwardRef<WorkspaceHandle, WorkspaceProps>(({
     const { stageRef, handleWheel, resetView, updatePreview } = useWorkspaceLogic({ onUpdate });
 
     // Внутренние refs для слоёв, если не переданы снаружи
-    const internalLayerRefs = useRef<Map<string, Konva.Layer>>(new Map());
+    const internalLayerRefs = useRef<Map<string, Konva.Group>>(new Map());
     const layerRefs = externalLayerRefs || internalLayerRefs;
     const stageReadyCalled = useRef(false);
 
@@ -134,22 +134,23 @@ export const Workspace = forwardRef<WorkspaceHandle, WorkspaceProps>(({
                     cursor: selectedTool === 'select' ? 'default' : 'crosshair'
                 }}
             >
-                {/* Все слои */}
-                {layers.map(layer => (
-                    <LayerRenderer
-                        key={`${layer.id}-${layer.zIndex}`}
-                        layer={layer}
-                        isSelected={selectedLayerIds.has(layer.id)}
-                        canDrag={canDrag(layer)}
-                        onDragEnd={handleImageDragEnd}
-                        onSelect={handleSelectLayer}
-                        selectedTool={selectedTool}
-                        layerRefs={layerRefs}
-                    />
-                ))}
-
-                {/* Контролы трансформации */}
+                {/* Единый слой для всех объектов */}
                 <KonvaLayer>
+                    {/* Все объекты */}
+                    {layers.map(layer => (
+                        <LayerRenderer
+                            key={`${layer.id}-${layer.zIndex}`}
+                            layer={layer}
+                            isSelected={selectedLayerIds.has(layer.id)}
+                            canDrag={canDrag(layer)}
+                            onDragEnd={handleImageDragEnd}
+                            onSelect={handleSelectLayer}
+                            selectedTool={selectedTool}
+                            layerRefs={layerRefs}
+                        />
+                    ))}
+
+                    {/* Контролы трансформации */}
                     <TransformControls
                         selectedNodeIds={selectedTool === 'select' ? selectedLayerIds : new Set()}
                         layerRefs={layerRefs}

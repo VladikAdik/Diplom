@@ -5,7 +5,7 @@ import { MIN_NODE_SIZE, SELECTION_STROKE } from '../../constants/editor';
 
 interface TransformControlsProps {
     selectedNodeIds: Set<string>;
-    layerRefs: React.RefObject<Map<string, Konva.Layer>>
+    layerRefs: React.RefObject<Map<string, Konva.Group>>
     onTransformStart?: () => void;
     onTransformEnd?: (transforms: Array<{
         id: string;
@@ -25,15 +25,13 @@ export function TransformControls({
     const transformerRef = useRef<Konva.Transformer>(null);
 
     const findNodesByIds = useCallback((ids: Set<string>): Konva.Node[] => {
-        const nodes: Konva.Node[] = [];
-        layerRefs.current.forEach((konvaLayer, layerId) => {
-            if (ids.has(layerId)) {
-                const child = konvaLayer.findOne(`#${layerId}`);
-                if (child) nodes.push(child);
-            }
-        });
-        return nodes;
-    }, [layerRefs]);
+    const nodes: Konva.Node[] = [];
+    ids.forEach(id => {
+        const group = layerRefs.current.get(id);
+        if (group) nodes.push(group);
+    });
+    return nodes;
+}, [layerRefs]);
 
     const handleTransformEnd = useCallback(() => {
 

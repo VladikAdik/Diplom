@@ -1,5 +1,5 @@
 import { memo, useEffect } from 'react';
-import { Layer as KonvaLayer, Image as KonvaImage, Shape as KonvaShape, Text as KonvaText } from 'react-konva';
+import { Image as KonvaImage, Shape as KonvaShape, Text as KonvaText, Group } from 'react-konva';
 import type Konva from 'konva';
 import type { Layer } from '../../types/Layer';
 import { DEFAULT_LAYER_X, DEFAULT_LAYER_Y, SELECTION_STROKE } from '../../constants/editor';
@@ -11,7 +11,7 @@ interface LayerRendererProps {
     onDragEnd: (id: string, x: number, y: number) => void;
     onSelect: (id: string, multiSelect: boolean) => void;
     selectedTool: string;
-    layerRefs: React.RefObject<Map<string, Konva.Layer>>;
+    layerRefs: React.RefObject<Map<string, Konva.Group>>; // ← меняем тип на Group
 }
 
 export const LayerRenderer = memo(({
@@ -23,7 +23,6 @@ export const LayerRenderer = memo(({
     selectedTool,
     layerRefs
 }: LayerRendererProps) => {
-    // Очистка ref при размонтировании
     useEffect(() => {
         const refs = layerRefs.current;
         return () => {
@@ -31,94 +30,83 @@ export const LayerRenderer = memo(({
         };
     }, [layer.id, layerRefs]);
 
+    // Общий обработчик клика для всех типов
+    const handleMouseDown = (e: Konva.KonvaEventObject<MouseEvent>) => {
+        e.cancelBubble = true;
+        if (selectedTool === 'select') {
+            const isMultiSelect = e.evt.ctrlKey || e.evt.metaKey;
+            const isAlreadySelected = isSelected;
+            if (isAlreadySelected && !isMultiSelect) return;
+            onSelect(layer.id, isMultiSelect);
+        }
+    };
+
+    const handleDragEnd = (e: Konva.KonvaEventObject<DragEvent>) => {
+        onDragEnd(layer.id, e.target.x(), e.target.y());
+    };
+
+    // Рендерим содержимое в зависимости от типа
+    const renderContent = () => {
+        switch (layer.type) {
+            case 'image':
+                if (!layer.runtime?.imageElement) return null;
+                return (
+                    <KonvaImage
+                        image={layer.runtime.imageElement}
+                        width={layer.width}
+                        height={layer.height}
+                        name={layer.id}
+                    />
+                );
+            case 'shape':
+                if (!layer.runtime?.shapeConfig) return null;
+                return (
+                    <KonvaShape
+                        {...layer.runtime.shapeConfig}
+                        width={layer.width}
+                        height={layer.height}
+                        name={layer.id}
+                    />
+                );
+            case 'text':
+                if (!layer.runtime?.textConfig) return null;
+                return (
+                    <KonvaText
+                        {...layer.runtime.textConfig}
+                        width={layer.width}
+                        height={layer.height}
+                        name={layer.id}
+                    />
+                );
+            default:
+                return null;
+        }
+    };
+
     return (
-        <KonvaLayer
+        <Group
             ref={(node) => {
                 if (node) {
                     layerRefs.current.set(layer.id, node);
                 }
             }}
+            x={layer.x ?? DEFAULT_LAYER_X}
+            y={layer.y ?? DEFAULT_LAYER_Y}
+            width={layer.width}    // ← добавь
+            height={layer.height} 
+            rotation={layer.rotation ?? 0}
             visible={layer.visible}
             opacity={layer.opacity}
             listening={!layer.locked}
+            draggable={canDrag}
+            onMouseDown={handleMouseDown}
+            onDragEnd={handleDragEnd}
+            stroke={isSelected ? SELECTION_STROKE : undefined}
+            strokeWidth={isSelected ? 2 : 0}
+            name={layer.id}
         >
-            {/* Изображения */}
-            {layer.type === 'image' && layer.runtime?.imageElement && (
-                <KonvaImage
-                    image={layer.runtime.imageElement}
-                    x={layer.x ?? DEFAULT_LAYER_X}
-                    y={layer.y ?? DEFAULT_LAYER_Y}
-                    stroke={isSelected ? SELECTION_STROKE : undefined}
-                    width={layer.width}
-                    height={layer.height}
-                    draggable={canDrag}
-                    onDragEnd={(e) => onDragEnd(layer.id, e.target.x(), e.target.y())}
-                    onMouseDown={(e) => {
-                        e.cancelBubble = true;
-                        if (selectedTool === 'select') {
-                            const isMultiSelect = e.evt.ctrlKey || e.evt.metaKey;
-                            const isAlreadySelected = isSelected;
-                            if (isAlreadySelected && !isMultiSelect) return;
-                            onSelect(layer.id, isMultiSelect);
-                        }
-                    }}
-                    strokeWidth={isSelected ? 2 : 0}
-                    name={layer.id}
-                />
-            )}
-
-            {/* Фигуры */}
-            {layer.type === 'shape' && layer.runtime?.shapeConfig && (
-                <KonvaShape
-                    {...layer.runtime.shapeConfig}
-                    x={layer.x ?? DEFAULT_LAYER_X}
-                    y={layer.y ?? DEFAULT_LAYER_Y}
-                    stroke={isSelected ? SELECTION_STROKE : undefined}
-                    width={layer.width}
-                    height={layer.height}
-                    rotation={layer.rotation}
-                    draggable={canDrag}
-                    onDragEnd={(e) => onDragEnd(layer.id, e.target.x(), e.target.y())}
-                    onMouseDown={(e) => {
-                        e.cancelBubble = true;
-                        if (selectedTool === 'select') {
-                            const isMultiSelect = e.evt.ctrlKey || e.evt.metaKey;
-                            const isAlreadySelected = isSelected;
-                            if (isAlreadySelected && !isMultiSelect) return;
-                            onSelect(layer.id, isMultiSelect);
-                        }
-                    }}
-                    strokeWidth={isSelected ? 2 : layer.runtime.shapeConfig.strokeWidth}
-                    name={layer.id}
-                />
-            )}
-
-            {/* Текст */}
-            {layer.type === 'text' && layer.runtime?.textConfig && (
-                <KonvaText
-                    {...layer.runtime.textConfig}
-                    x={layer.x ?? DEFAULT_LAYER_X}
-                    y={layer.y ?? DEFAULT_LAYER_Y}
-                    stroke={isSelected ? SELECTION_STROKE : undefined}
-                    width={layer.width}
-                    height={layer.height}
-                    rotation={layer.rotation}
-                    draggable={canDrag}
-                    onDragEnd={(e) => onDragEnd(layer.id, e.target.x(), e.target.y())}
-                    onMouseDown={(e) => {
-                        e.cancelBubble = true;
-                        if (selectedTool === 'select') {
-                            const isMultiSelect = e.evt.ctrlKey || e.evt.metaKey;
-                            const isAlreadySelected = isSelected;
-                            if (isAlreadySelected && !isMultiSelect) return;
-                            onSelect(layer.id, isMultiSelect);
-                        }
-                    }}
-                    strokeWidth={isSelected ? 2 : 0}
-                    name={layer.id}
-                />
-            )}
-        </KonvaLayer>
+            {renderContent()}
+        </Group>
     );
 });
 
