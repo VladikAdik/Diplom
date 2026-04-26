@@ -33,7 +33,6 @@ export function TransformControls({
         ids.forEach(id => {
             const group = layerRefs.current.get(id);
             if (group) {
-                console.log(`Found node ${id}:`, group.getClientRect());
                 nodes.push(group);
             } else {
                 console.warn(`Node ${id} not found`);

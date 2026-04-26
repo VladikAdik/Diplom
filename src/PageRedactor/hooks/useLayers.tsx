@@ -1,6 +1,7 @@
 import { useState, useCallback, useRef, useEffect } from 'react';
 import type { Layer } from '../types/Layer';
 import { useHistory } from './useHistory';
+import { useSnapMove, type SnapGuide } from './useSnapMove';
 import { imageToDataURL } from '../utils/imageUtils';
 import {
     DEFAULT_LAYER_X, DEFAULT_LAYER_Y, DEFAULT_LAYER_OPACITY,
@@ -258,12 +259,14 @@ async function deserializeLayer(layer: Layer): Promise<Layer> {
 // Хук useLayers
 // ============================================================
 
-export function useLayers() {
+export function useLayers(stageSize: { width: number; height: number }) {
     const [layers, setLayers] = useState<Layer[]>([]);
     const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
     const layerRefs = useRef<Map<string, Konva.Group>>(new Map());
 
     const { saveState, undo: undoHistory, redo: redoHistory, canUndo, canRedo, clearHistory } = useHistory();
+
+    const [snapGuides, setSnapGuides] = useState<SnapGuide[]>([]);
 
     // Ref для актуального выделения (чтобы saveState всегда видел свежее значение)
     const selectedIdsRef = useRef(selectedIds);
@@ -467,6 +470,32 @@ export function useLayers() {
         };
     }, [layers]);
 
+    const handlePositionChange = useCallback(
+        (id: string, x: number, y: number, saveHistory: boolean) => {
+            if (saveHistory) {
+                mutate(prev =>
+                    prev.map(layer =>
+                        layer.id === id ? { ...layer, x, y } : layer
+                    )
+                );
+            } else {
+                setLayers(prev =>
+                    prev.map(layer =>
+                        layer.id === id ? { ...layer, x, y } : layer
+                    )
+                );
+            }
+        },
+        [mutate]
+    );
+
+    const { handleDragMove, handleDragEnd } = useSnapMove({
+        layers,
+        stageSize,
+        setSnapGuides,
+        onPositionChange: handlePositionChange,
+    });
+
     // ============================================================
     // Операции без сохранения в историю
     // ============================================================
@@ -566,6 +595,10 @@ export function useLayers() {
         updateMultipleLayers,
         moveLayer,
         getFirstImageBounds,
+
+        snapGuides,
+        handleDragMove,
+        handleDragEnd,
 
         // Свойства (без истории)
         toggleVisibility,

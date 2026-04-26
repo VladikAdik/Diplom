@@ -3,8 +3,10 @@ import { Stage, Layer as KonvaLayer } from 'react-konva';
 import { useWorkspaceLogic } from '../../hooks/useWorkspace';
 import { useSelectionRect } from '../../hooks/useSelectionRect';
 import { LayerRenderer } from './LayerRenderer';
+import { SnapGuides } from './SnapGuides';
 import { TransformControls } from './TransformControls';
 import { SelectionRectLayer } from './SelectionRectLayer';
+import type { SnapGuide } from '../../hooks/useSnapMove';
 import type { Layer } from '../../types/Layer';
 import type Konva from 'konva';
 
@@ -20,6 +22,8 @@ interface WorkspaceProps {
     onLayerDragEnd: (id: string, x: number, y: number) => void;
     onTransformEnd: (transforms: TransformData[]) => void;
     onUpdate?: (url: string) => void;
+    onLayerDragMove?: (id: string, x: number, y: number, width?: number, height?: number) => void;
+    snapGuides: SnapGuide[];
 }
 
 type TransformData = {
@@ -59,8 +63,10 @@ export function Workspace({
     onLayerDragEnd,
     onTransformEnd,
     onUpdate,
+    onLayerDragMove,
+    snapGuides,
 }: WorkspaceProps) {
-    
+
     // Управление сценой
     const { stageRef, containerRef, updatePreview } = useWorkspaceLogic({ onUpdate });
 
@@ -111,6 +117,7 @@ export function Workspace({
                             isSelected={selectedLayerIds.has(layer.id)}
                             canDrag={!layer.locked && selectedTool === 'select'}
                             onDragEnd={handleDragEnd}
+                            onDragMove={onLayerDragMove}
                             onSelect={onSelectLayer}
                             selectedTool={selectedTool}
                             layerRefs={layerRefs}
@@ -122,6 +129,11 @@ export function Workspace({
                         selectedNodeIds={showTransformer ? selectedLayerIds : new Set()}
                         layerRefs={layerRefs}
                         onTransformEnd={handleTransformEnd}
+                    />
+                    <SnapGuides
+                        guides={snapGuides}
+                        stageWidth={stageSize.width}
+                        stageHeight={stageSize.height}
                     />
                 </KonvaLayer>
 

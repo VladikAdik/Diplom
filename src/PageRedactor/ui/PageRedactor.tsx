@@ -1,4 +1,4 @@
-import { useState, useCallback, useEffect} from 'react';
+import { useState, useCallback, useEffect } from 'react';
 import { Header } from './Header/Header';
 import { Workspace } from './Workspace/Workspace';
 import { SidebarLayers } from './Sidebars/SidebarLayers';
@@ -50,7 +50,11 @@ export function PageRedactor({ image }: PageRedactorProps) {
         canRedo,
         clearAll,
 
-    } = useLayers();
+        handleDragMove,
+        handleDragEnd,
+        snapGuides,
+
+    } = useLayers(stageSize);
 
     // Загружаем начальное изображение
     useEffect(() => {
@@ -142,11 +146,6 @@ export function PageRedactor({ image }: PageRedactorProps) {
         }
     }, [updateLayerPosition, updateMultipleLayers]);
 
-    // Обработчик перетаскивания
-    const handleLayerDragEnd = useCallback((id: string, x: number, y: number) => {
-        updateLayerPosition(id, x, y);
-    }, [updateLayerPosition]);
-
     return (
         <div>
             <Header
@@ -166,10 +165,13 @@ export function PageRedactor({ image }: PageRedactorProps) {
                 layerRefs={layerRefs}
                 onSelectLayer={selectLayer}
                 onClearSelection={clearSelection}
-                onLayerDragEnd={handleLayerDragEnd}
+                //onLayerDragEnd={handleLayerDragEnd}
                 onTransformEnd={handleTransformEnd}
                 onUpdate={setPreviewUrl}
                 stageSize={stageSize}
+                onLayerDragMove={handleDragMove}
+                onLayerDragEnd={handleDragEnd}
+                snapGuides={snapGuides}
             />
 
             <SidebarTools

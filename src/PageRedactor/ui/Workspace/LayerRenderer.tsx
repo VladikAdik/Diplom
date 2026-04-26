@@ -8,6 +8,7 @@ interface LayerRendererProps {
     layer: Layer;
     isSelected: boolean;
     canDrag: boolean;
+    onDragMove?: (id: string, x: number, y: number, width?: number, height?: number) => void;
     onDragEnd: (id: string, x: number, y: number) => void;
     onSelect: (id: string, multiSelect: boolean) => void;
     selectedTool: string;
@@ -18,6 +19,7 @@ export const LayerRenderer = memo(({
     layer,
     isSelected,
     canDrag,
+    onDragMove,
     onDragEnd,
     onSelect,
     selectedTool,
@@ -39,6 +41,10 @@ export const LayerRenderer = memo(({
             if (isAlreadySelected && !isMultiSelect) return;
             onSelect(layer.id, isMultiSelect);
         }
+    };
+
+    const handleDragMove = (e: Konva.KonvaEventObject<DragEvent>) => {
+        onDragMove?.(layer.id, e.target.x(), e.target.y(), layer.width, layer.height);
     };
 
     const handleDragEnd = (e: Konva.KonvaEventObject<DragEvent>) => {
@@ -100,6 +106,7 @@ export const LayerRenderer = memo(({
             listening={!layer.locked}
             draggable={canDrag}
             onMouseDown={handleMouseDown}
+            onDragMove={handleDragMove}
             onDragEnd={handleDragEnd}
             stroke={isSelected ? SELECTION_STROKE : undefined}
             strokeWidth={isSelected ? 2 : 0}
