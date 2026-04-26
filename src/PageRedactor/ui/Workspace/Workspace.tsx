@@ -1,4 +1,4 @@
-import { forwardRef, useCallback } from 'react';
+import { useCallback } from 'react';
 import { Stage, Layer as KonvaLayer } from 'react-konva';
 import { useWorkspaceLogic } from '../../hooks/useWorkspace';
 import { useSelectionRect } from '../../hooks/useSelectionRect';
@@ -8,36 +8,47 @@ import { SelectionRectLayer } from './SelectionRectLayer';
 import type { Layer } from '../../types/Layer';
 import type Konva from 'konva';
 
+// === Типы ===
 interface WorkspaceProps {
     layers: Layer[];
     selectedLayerIds: Set<string>;
     selectedTool: string;
     layerRefs: React.RefObject<Map<string, Konva.Group>>;
     stageSize: { width: number; height: number };
-
-    // Колбэки (теперь приходят напрямую из useLayers)
     onSelectLayer: (id: string, multiSelect?: boolean) => void;
     onClearSelection: () => void;
     onLayerDragEnd: (id: string, x: number, y: number) => void;
-    onTransformEnd: (transforms: Array<{
-        id: string;
-        x: number;
-        y: number;
-        width: number;
-        height: number;
-        rotation: number;
-    }>) => void;
-
+    onTransformEnd: (transforms: TransformData[]) => void;
     onUpdate?: (url: string) => void;
 }
 
-export type WorkspaceHandle = {
-    resetView: () => void;
-    updatePreview: () => void;
-    getStage: () => Konva.Stage | null;
+type TransformData = {
+    id: string;
+    x: number;
+    y: number;
+    width: number;
+    height: number;
+    rotation: number;
 };
 
-export const Workspace = forwardRef<WorkspaceHandle, WorkspaceProps>(({
+// === Стили ===
+const CONTAINER_STYLE: React.CSSProperties = {
+    width: '100%',
+    height: 'calc(100vh - 100px)',
+    overflow: 'hidden',
+    display: 'flex',
+    justifyContent: 'center',
+    alignItems: 'center',
+};
+
+const STAGE_STYLE = (tool: string): React.CSSProperties => ({
+    border: '1px solid #ccc',
+    background: '#f5f5f5',
+    cursor: tool === 'select' ? 'default' : 'crosshair',
+});
+
+// === Компонент ===
+export function Workspace({
     layers,
     selectedLayerIds,
     selectedTool,
@@ -47,71 +58,53 @@ export const Workspace = forwardRef<WorkspaceHandle, WorkspaceProps>(({
     onClearSelection,
     onLayerDragEnd,
     onTransformEnd,
-    onUpdate
-}) => {
-    // ==================================
-    // Хуки
-    // ==================================
+    onUpdate,
+}: WorkspaceProps) {
+    
+    // Управление сценой
+    const { stageRef, containerRef, updatePreview } = useWorkspaceLogic({ onUpdate });
 
-    // Управление сценой: зум, ресайз, превью
-    const { stageRef, handleWheel, updatePreview } = useWorkspaceLogic({ onUpdate });
-
-    // Логика выделения рамкой (drag-прямоугольник)
+    // Выделение рамкой
     const { isSelecting, selectionRect } = useSelectionRect({
         stageRef,
         selectedTool,
         layers,
         clearSelection: onClearSelection,
-        selectLayer: onSelectLayer
+        selectLayer: onSelectLayer,
     });
 
-    // ==================================
-    // Обработчики событий
-    // ==================================
+    // Конец перетаскивания слоя
+    const handleDragEnd = useCallback(
+        (layerId: string, x: number, y: number) => {
+            onLayerDragEnd(layerId, x, y);
+            updatePreview();
+        },
+        [onLayerDragEnd, updatePreview]
+    );
 
-    const handleDragEnd = useCallback((layerId: string, x: number, y: number) => {
-        onLayerDragEnd(layerId, x, y);
-        updatePreview();
-    }, [onLayerDragEnd, updatePreview]);
+    // Конец трансформации (масштабирование/поворот)
+    const handleTransformEnd = useCallback(
+        (transforms: TransformData[]) => {
+            onTransformEnd(transforms);
+            setTimeout(() => updatePreview(), 0);
+        },
+        [onTransformEnd, updatePreview]
+    );
 
-    const handleTransformEnd = useCallback((transforms: Array<{
-        id: string;
-        x: number;
-        y: number;
-        width: number;
-        height: number;
-        rotation: number;
-    }>) => {
-        onTransformEnd(transforms);
-        setTimeout(() => updatePreview(), 0);
-    }, [onTransformEnd, updatePreview]);
-
-    // ==================================
-    // Рендер
-    // ==================================
+    // Трансформер показываем только в режиме выделения
+    const showTransformer = selectedTool === 'select';
 
     return (
-        <div style={{
-            width: '100%',
-            height: 'calc(100vh - 100px)',
-            overflow: 'hidden',
-            display: 'flex',           // ← добавить
-            justifyContent: 'center',  // ← добавить
-            alignItems: 'center'
-        }}>
+        <div ref={containerRef} style={CONTAINER_STYLE}>
             <Stage
                 ref={stageRef}
                 width={stageSize.width}
                 height={stageSize.height}
-                onWheel={handleWheel}
-                style={{
-                    border: '1px solid #ccc',
-                    background: '#f5f5f5',
-                    cursor: selectedTool === 'select' ? 'default' : 'crosshair'
-                }}
+                style={STAGE_STYLE(selectedTool)}
             >
+                {/* Слои */}
                 <KonvaLayer>
-                    {layers.map(layer => (
+                    {layers.map((layer) => (
                         <LayerRenderer
                             key={layer.id}
                             layer={layer}
@@ -124,15 +117,20 @@ export const Workspace = forwardRef<WorkspaceHandle, WorkspaceProps>(({
                         />
                     ))}
 
+                    {/* Трансформер для выделенных */}
                     <TransformControls
-                        selectedNodeIds={selectedTool === 'select' ? selectedLayerIds : new Set()}
+                        selectedNodeIds={showTransformer ? selectedLayerIds : new Set()}
                         layerRefs={layerRefs}
                         onTransformEnd={handleTransformEnd}
                     />
                 </KonvaLayer>
 
-                <SelectionRectLayer isSelecting={isSelecting} selectionRect={selectionRect} />
+                {/* Рамка выделения */}
+                <SelectionRectLayer
+                    isSelecting={isSelecting}
+                    selectionRect={selectionRect}
+                />
             </Stage>
         </div>
     );
-});
+}

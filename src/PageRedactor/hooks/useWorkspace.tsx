@@ -1,16 +1,20 @@
 import { useRef, useEffect, useCallback, useState } from 'react';
 import Konva from 'konva';
-import { MIN_SCALE, MAX_SCALE, ZOOM_STEP, STAGE_PADDING_BOTTOM } from '../constants/editor';
+import { MIN_SCALE, MAX_SCALE } from '../constants/editor';
 
 interface WorkspaceLogicProps {
     onUpdate?: (url: string) => void;
 }
 
+const ZOOM_IN_FACTOR = 1.1;   // 10% увеличение
+const ZOOM_OUT_FACTOR = 0.9;  // 10% уменьшение
+
 export function useWorkspaceLogic({ onUpdate }: WorkspaceLogicProps) {
     const stageRef = useRef<Konva.Stage>(null);
+    const containerRef = useRef<HTMLDivElement>(null);
     const [scale, setScale] = useState(1);
-    const [position, setPosition] = useState({ x: 0, y: 0 });
 
+    // === Превью сцены ===
     const updatePreview = useCallback(() => {
         if (stageRef.current) {
             const url = stageRef.current.toDataURL();
@@ -18,81 +22,70 @@ export function useWorkspaceLogic({ onUpdate }: WorkspaceLogicProps) {
         }
     }, [onUpdate]);
 
-    // Обработчик колесика мыши (зум всей сцены)
-    const handleWheel = useCallback((e: Konva.KonvaEventObject<WheelEvent>) => {
-        e.evt.preventDefault();
-        
-        const stage = stageRef.current;
-        if (!stage) return;
-        
-        const oldScale = stage.scaleX();
-        const pointer = stage.getPointerPosition();
-        
-        if (!pointer) return;
-        
-        const delta = e.evt.deltaY > 0 ? -ZOOM_STEP : ZOOM_STEP;
-        let newScale = oldScale + delta;
-        newScale = Math.min(Math.max(newScale, MIN_SCALE), MAX_SCALE);
-        
-        if (newScale === oldScale) return;
-        
-        // Зум относительно позиции мыши
-        const mousePointTo = {
-            x: (pointer.x - stage.x()) / oldScale,
-            y: (pointer.y - stage.y()) / oldScale,
-        };
-        
-        const newPosition = {
-            x: pointer.x - mousePointTo.x * newScale,
-            y: pointer.y - mousePointTo.y * newScale,
-        };
-        
+    // === Применение зума к сцене ===
+    const applyZoom = useCallback((stage: Konva.Stage, zoomFactor: number) => {
+        const currentScale = stage.scaleX();
+        const newScale = currentScale * zoomFactor;
+
+        // Проверка границ
+        if (newScale < MIN_SCALE || newScale > MAX_SCALE) return;
+
+        // Масштабируем размер сцены
+        const newWidth = stage.width() * zoomFactor;
+        const newHeight = stage.height() * zoomFactor;
+
+        // Применяем изменения
+        stage.width(newWidth);
+        stage.height(newHeight);
         stage.scale({ x: newScale, y: newScale });
-        stage.position(newPosition);
         stage.batchDraw();
-        
+
         setScale(newScale);
-        setPosition(newPosition);
-        
     }, []);
 
-    // Ресайз окна
-    // useEffect(() => {
-    //     const handleResize = () => {
-    //         if (!stageRef.current) return;
-            
-    //         const stageWidth = window.innerWidth;
-    //         const stageHeight = window.innerHeight - STAGE_PADDING_BOTTOM;
-            
-    //         stageRef.current.width(stageWidth);
-    //         stageRef.current.height(stageHeight);
-    //         stageRef.current.batchDraw();
-            
-    //     };
-        
-    //     window.addEventListener('resize', handleResize);
-    //     return () => window.removeEventListener('resize', handleResize);
-    // }, []);
+    // === Обработчик колёсика мыши ===
+    const handleWheel = useCallback((event: WheelEvent) => {
+        event.preventDefault();
 
-    // Сброс вида (центрировать всё)
+        const stage = stageRef.current;
+        if (!stage) return;
+
+        // Крутим вверх = zoomIn, вниз = zoomOut
+        const zoomFactor = event.deltaY > 0 ? ZOOM_OUT_FACTOR : ZOOM_IN_FACTOR;
+
+        applyZoom(stage, zoomFactor);
+    }, [applyZoom]);
+
+    // === Навешиваем обработчик на весь контейнер ===
+    useEffect(() => {
+        const container = containerRef.current;
+        if (!container) return;
+
+        container.addEventListener('wheel', handleWheel, { passive: false });
+
+        return () => {
+            container.removeEventListener('wheel', handleWheel);
+        };
+    }, [handleWheel]);
+
+    // === Сброс вида к исходному ===
     const resetView = useCallback(() => {
-        if (!stageRef.current) return;
-        
-        stageRef.current.scale({ x: 1, y: 1 });
-        stageRef.current.position({ x: 0, y: 0 });
-        stageRef.current.batchDraw();
-        
+        const stage = stageRef.current;
+        if (!stage) return;
+
+        stage.scale({ x: 1, y: 1 });
+        stage.position({ x: 0, y: 0 });
+        stage.batchDraw();
+
         setScale(1);
-        setPosition({ x: 0, y: 0 });
         updatePreview();
     }, [updatePreview]);
 
     return {
         stageRef,
+        containerRef,
         scale,
-        position,
-        handleWheel,
         resetView,
-        updatePreview
+        updatePreview,
     };
 }

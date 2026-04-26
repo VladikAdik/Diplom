@@ -26,8 +26,8 @@ function createImageLayerData(image: HTMLImageElement, centerX: number, centerY:
         locked: false,
         opacity: DEFAULT_LAYER_OPACITY,
         type: 'image',
-        x: centerX - image.width / 2,
-        y: centerY - image.height / 2,
+        x: centerX ? centerX - image.width / 2 : DEFAULT_LAYER_X,
+        y: centerY ? centerY - image.height / 2 : DEFAULT_LAYER_Y,
         width: image.width,
         height: image.height,
         rotation: 0,
@@ -458,6 +458,7 @@ export function useLayers() {
 
     const getFirstImageBounds = useCallback(() => {
         const firstImage = layers.find(l => l.type === 'image');
+        console.log('First image:', firstImage);
         if (!firstImage) return null;
 
         return {

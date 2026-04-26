@@ -1,4 +1,4 @@
-import { useState, useCallback, useEffect } from 'react';
+import { useState, useCallback, useEffect} from 'react';
 import { Header } from './Header/Header';
 import { Workspace } from './Workspace/Workspace';
 import { SidebarLayers } from './Sidebars/SidebarLayers';
@@ -14,7 +14,7 @@ interface PageRedactorProps {
 export function PageRedactor({ image }: PageRedactorProps) {
     const [previewUrl, setPreviewUrl] = useState<string>('');
     const [selectedTool, setSelectedTool] = useState<string>('select');
-    const { stageSize, fitToContent, setCustomSize, isAdjusted, getStageCenter } = useStageSize();
+    const { stageSize, fitToContent, setCustomSize, getStageCenter } = useStageSize();
     const [showSizeModal, setShowSizeModal] = useState(false);
     const [customWidth, setCustomWidth] = useState(800);
     const [customHeight, setCustomHeight] = useState(600);
@@ -33,7 +33,6 @@ export function PageRedactor({ image }: PageRedactorProps) {
         removeLayer,
         updateLayerPosition,
         updateMultipleLayers,
-        getFirstImageBounds,
 
         // Свойства
         toggleVisibility,
@@ -55,20 +54,13 @@ export function PageRedactor({ image }: PageRedactorProps) {
 
     // Загружаем начальное изображение
     useEffect(() => {
-        if (image && layers.length === 0) {
-            const center = getStageCenter();
-            addImageLayer(image, center.x, center.y);
-        }
-    }, [image, layers.length, addImageLayer, getStageCenter]);
+        if (image) {
+            // Сначала меняем размер stage под изображение
+            fitToContent(image.width, image.height);
+            addImageLayer(image, image.width / 2, image.height / 2);
 
-    useEffect(() => {
-        if (!isAdjusted && layers.length > 0) {
-            const bounds = getFirstImageBounds();
-            if (bounds) {
-                fitToContent(bounds.width, bounds.height);
-            }
         }
-    }, [layers, isAdjusted, fitToContent, getFirstImageBounds]);
+    }, [image, addImageLayer, fitToContent]);
 
     // Горячие клавиши
     useEffect(() => {
