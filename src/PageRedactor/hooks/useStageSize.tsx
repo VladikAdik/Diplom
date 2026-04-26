@@ -31,9 +31,8 @@ export function useStageSize() {
     }, []);
 
     const getStageCenter = useCallback(() => {
-        // Защита от NaN
-        const width = stageSize.width || DEFAULT_STAGE_WIDTH;
-        const height = stageSize.height || DEFAULT_STAGE_HEIGHT;
+        const width = stageSize.width;
+        const height = stageSize.height;
         console.log('Center:', { width, height });
         return {
             x: width / 2,

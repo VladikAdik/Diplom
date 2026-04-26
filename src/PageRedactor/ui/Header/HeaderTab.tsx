@@ -15,35 +15,41 @@ export function HeaderTab({ title, children }: HeaderTabProps) {
                 setIsOpen(false);
             }
         };
-        document.addEventListener('click', handleClickOutside);
-        return () => document.removeEventListener('click', handleClickOutside);
-    }, []);
+        
+        if (isOpen) {
+            document.addEventListener('mousedown', handleClickOutside);
+        }
+        
+        return () => document.removeEventListener('mousedown', handleClickOutside);
+    }, [isOpen]);
 
     return (
         <div ref={tabRef} style={{ position: 'relative' }}>
             <button
                 onClick={() => setIsOpen(!isOpen)}
                 style={{
+                    background: isOpen ? '#34495e' : 'transparent',
                     border: 'none',
                     color: 'white',
                     cursor: 'pointer',
-                    fontSize: '14px',
-                    padding: '8px 12px',
+                    fontSize: '13px',
+                    padding: '6px 12px',
                     borderRadius: '4px',
-                    background: isOpen ? '#34495e' : '#565e34'
+                    transition: 'background 0.2s'
                 }}
             >
-                {title} ▼
+                {title}
             </button>
             {isOpen && (
                 <div style={{
                     position: 'absolute',
-                    top: '40px',
+                    top: '100%',
                     left: '0',
+                    marginTop: '4px',
                     background: 'white',
-                    border: '1px solid #ccc',
-                    borderRadius: '4px',
-                    boxShadow: '0 2px 8px rgba(0,0,0,0.15)',
+                    border: '1px solid #ddd',
+                    borderRadius: '6px',
+                    boxShadow: '0 4px 12px rgba(0,0,0,0.1)',
                     zIndex: 200,
                     minWidth: '200px'
                 }}>
