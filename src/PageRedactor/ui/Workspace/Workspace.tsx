@@ -1,4 +1,4 @@
-import { useCallback } from 'react';
+import { useCallback, useEffect } from 'react';
 import { Stage, Layer as KonvaLayer } from 'react-konva';
 import { useWorkspaceLogic } from '../../hooks/useWorkspace';
 import { useSelectionRect } from '../../hooks/useSelectionRect';
@@ -24,6 +24,12 @@ interface WorkspaceProps {
     onUpdate?: (url: string) => void;
     onLayerDragMove?: (id: string, x: number, y: number, width?: number, height?: number) => void;
     snapGuides: SnapGuide[];
+    stageRef: React.RefObject<Konva.Stage | null>; 
+    penHandlers?: {
+        onMouseDown: () => void;
+        onMouseMove: () => void;
+        onMouseUp: () => void;
+    };
 }
 
 type TransformData = {
@@ -58,6 +64,8 @@ export function Workspace({
     selectedTool,
     layerRefs,
     stageSize,
+    stageRef,
+    penHandlers,
     onSelectLayer,
     onClearSelection,
     onLayerDragEnd,
@@ -68,7 +76,7 @@ export function Workspace({
 }: WorkspaceProps) {
 
     // Управление сценой
-    const { stageRef, containerRef, updatePreview } = useWorkspaceLogic({ onUpdate });
+    const { containerRef, updatePreview } = useWorkspaceLogic({ onUpdate, stageRef });
 
     // Выделение рамкой
     const { isSelecting, selectionRect } = useSelectionRect({
@@ -78,6 +86,21 @@ export function Workspace({
         clearSelection: onClearSelection,
         selectLayer: onSelectLayer,
     });
+
+    useEffect(() => {
+        const stage = stageRef.current;
+        if (!stage || !penHandlers) return;
+
+        stage.on('mousedown.pen', penHandlers.onMouseDown);
+        stage.on('mousemove.pen', penHandlers.onMouseMove);
+        stage.on('mouseup.pen', penHandlers.onMouseUp);
+
+        return () => {
+            stage.off('mousedown.pen');
+            stage.off('mousemove.pen');
+            stage.off('mouseup.pen');
+        };
+    }, [stageRef, penHandlers]);
 
     // Конец перетаскивания слоя
     const handleDragEnd = useCallback(

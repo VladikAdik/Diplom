@@ -1,7 +1,8 @@
+import { useState, useCallback } from "react";
 import { HeaderTab } from "./HeaderTab";
 import { HeaderTabItem } from "./HeaderTabItem";
 import { SizePanel } from "../Panels/SizePanel";
-import { useState, useCallback } from "react";
+import { usePopover } from "../../hooks/usePopover";
 
 interface HeaderProps {
     onNewProject?: () => void;
@@ -38,25 +39,20 @@ export function Header({
     currentWidth = 800,
     currentHeight = 600
 }: HeaderProps) {
-    const [showSizePanel, setShowSizePanel] = useState(false);
+    const { isOpen, toggle, close, popoverRef } = usePopover();
     const [panelKey, setPanelKey] = useState(0);
 
     const handleToggleSizePanel = useCallback(() => {
-        if (!showSizePanel) {
-            // При открытии увеличиваем ключ для пересоздания панели
+        if (!isOpen('size')) {
             setPanelKey(prev => prev + 1);
         }
-        setShowSizePanel(prev => !prev);
-    }, [showSizePanel]);
-
-    const handleCloseSizePanel = useCallback(() => {
-        setShowSizePanel(false);
-    }, []);
+        toggle('size');
+    }, [isOpen, toggle]);
 
     const handleApplySize = useCallback((w: number, h: number) => {
         onSetCustomSize?.(w, h);
-        setShowSizePanel(false);
-    }, [onSetCustomSize]);
+        close();
+    }, [onSetCustomSize, close]);
 
     return (
         <div style={{ 
@@ -91,8 +87,8 @@ export function Header({
                 <HeaderTabItem onClick={onShowAbout}>ℹ О программе</HeaderTabItem>
             </HeaderTab>
 
-            {showSizePanel && (
-                <div style={{
+            {isOpen('size') && (
+                <div ref={popoverRef} style={{
                     position: 'absolute',
                     top: '40px',
                     left: '120px',
@@ -107,7 +103,7 @@ export function Header({
                         currentWidth={currentWidth}
                         currentHeight={currentHeight}
                         onApply={handleApplySize}
-                        onClose={handleCloseSizePanel}
+                        onClose={close}
                     />
                 </div>
             )}

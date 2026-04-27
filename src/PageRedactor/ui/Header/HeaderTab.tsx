@@ -1,4 +1,5 @@
-import { useState, useRef, useEffect, type ReactNode } from 'react';
+import { useRef, type ReactNode } from 'react';
+import { usePopover } from '../../hooks/usePopover';
 
 interface HeaderTabProps {
     title: string;
@@ -6,29 +7,15 @@ interface HeaderTabProps {
 }
 
 export function HeaderTab({ title, children }: HeaderTabProps) {
-    const [isOpen, setIsOpen] = useState(false);
+    const { isOpen, toggle, popoverRef } = usePopover();
     const tabRef = useRef<HTMLDivElement>(null);
-
-    useEffect(() => {
-        const handleClickOutside = (e: MouseEvent) => {
-            if (tabRef.current && !tabRef.current.contains(e.target as Node)) {
-                setIsOpen(false);
-            }
-        };
-        
-        if (isOpen) {
-            document.addEventListener('mousedown', handleClickOutside);
-        }
-        
-        return () => document.removeEventListener('mousedown', handleClickOutside);
-    }, [isOpen]);
 
     return (
         <div ref={tabRef} style={{ position: 'relative' }}>
             <button
-                onClick={() => setIsOpen(!isOpen)}
+                onClick={() => toggle(title)}
                 style={{
-                    background: isOpen ? '#34495e' : 'transparent',
+                    background: isOpen(title) ? '#34495e' : 'transparent',
                     border: 'none',
                     color: 'white',
                     cursor: 'pointer',
@@ -40,8 +27,8 @@ export function HeaderTab({ title, children }: HeaderTabProps) {
             >
                 {title}
             </button>
-            {isOpen && (
-                <div style={{
+            {isOpen(title) && (
+                <div ref={popoverRef} style={{
                     position: 'absolute',
                     top: '100%',
                     left: '0',

@@ -40,3 +40,9 @@ export const STAGE_PADDING_BOTTOM = 100;
 export const WORKSPACE_PADDING = 50;
 export const DEFAULT_STAGE_WIDTH = 800;
 export const DEFAULT_STAGE_HEIGHT = 600;
+
+// ====== КИСТЬ ======
+export const DEFAULT_PEN_COLOR = '#000000';
+export const DEFAULT_PEN_WIDTH = 4;
+export const MIN_PEN_WIDTH = 1;
+export const MAX_PEN_WIDTH = 50;

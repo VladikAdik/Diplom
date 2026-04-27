@@ -1,5 +1,5 @@
-import { memo, useEffect } from 'react';
-import { Image as KonvaImage, Shape as KonvaShape, Text as KonvaText, Group } from 'react-konva';
+import { memo, useEffect, useState } from 'react';
+import { Image as KonvaImage, Shape as KonvaShape, Text as KonvaText, Group } from 'react-konva'
 import type Konva from 'konva';
 import type { Layer } from '../../types/Layer';
 import { DEFAULT_LAYER_X, DEFAULT_LAYER_Y, SELECTION_STROKE } from '../../constants/editor';
@@ -14,6 +14,24 @@ interface LayerRendererProps {
     selectedTool: string;
     layerRefs: React.RefObject<Map<string, Konva.Group>>; // ← меняем тип на Group
 }
+
+function useImage(url: string): HTMLImageElement | null {
+    const [image, setImage] = useState<HTMLImageElement | null>(null);
+    useEffect(() => {
+        const img = new Image();
+        img.onload = () => setImage(img);
+        img.src = url;
+        return () => { img.onload = null; };
+    }, [url]);
+    return image;
+}
+
+const CanvasLayerContent = memo(({ src, width, height }: { src: string; width?: number; height?: number }) => {
+    const image = useImage(src);
+    if (!image) return null;
+    return <KonvaImage image={image} width={width} height={height} />;
+});
+CanvasLayerContent.displayName = 'CanvasLayerContent';
 
 export const LayerRenderer = memo(({
     layer,
@@ -34,8 +52,8 @@ export const LayerRenderer = memo(({
 
     // Общий обработчик клика для всех типов
     const handleMouseDown = (e: Konva.KonvaEventObject<MouseEvent>) => {
-        e.cancelBubble = true;
         if (selectedTool === 'select') {
+            e.cancelBubble = true;
             const isMultiSelect = e.evt.ctrlKey || e.evt.metaKey;
             const isAlreadySelected = isSelected;
             if (isAlreadySelected && !isMultiSelect) return;
@@ -84,6 +102,9 @@ export const LayerRenderer = memo(({
                         name={layer.id}
                     />
                 );
+            case 'canvas':
+                if (layer.data.type !== 'canvas') return null;
+                return <CanvasLayerContent src={layer.data.src} width={layer.width} height={layer.height} />;
             default:
                 return null;
         }
@@ -99,7 +120,7 @@ export const LayerRenderer = memo(({
             x={layer.x ?? DEFAULT_LAYER_X}
             y={layer.y ?? DEFAULT_LAYER_Y}
             width={layer.width}    // ← добавь
-            height={layer.height} 
+            height={layer.height}
             rotation={layer.rotation ?? 0}
             visible={layer.visible}
             opacity={layer.opacity}

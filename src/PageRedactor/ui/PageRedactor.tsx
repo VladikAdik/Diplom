@@ -1,4 +1,4 @@
-import { useState, useCallback, useEffect } from 'react';
+import { useState, useCallback, useEffect, useRef } from 'react';
 import { Header } from './Header/Header';
 import { Workspace } from './Workspace/Workspace';
 import { SidebarLayers } from './Sidebars/SidebarLayers';
@@ -6,6 +6,8 @@ import { SidebarTools } from './Sidebars/SidebarTools';
 import { SidebarSummary } from './Sidebars/SidebarSummary';
 import { useLayers } from '../hooks/useLayers';
 import { useStageSize } from '../hooks/useStageSize';
+import { usePenTool } from '../hooks/usePenTool';
+import type Konva from 'konva';
 
 interface PageRedactorProps {
     image: HTMLImageElement | null;
@@ -15,14 +17,18 @@ export function PageRedactor({ image }: PageRedactorProps) {
     const [previewUrl, setPreviewUrl] = useState<string>('');
     const [selectedTool, setSelectedTool] = useState<string>('select');
     const { stageSize, fitToContent, setCustomSize, getStageCenter } = useStageSize();
+    const stageRef = useRef<Konva.Stage | null>(null);
+
+    const [penColor, setPenColor] = useState('#000000');
+    const [penWidth, setPenWidth] = useState(4);
 
     const {
         layers,
         selectedLayerIds,
         layerRefs,
         addImageLayer,
-        addShapeLayer,
         removeLayer,
+        updateLayer,
         updateLayerPosition,
         updateMultipleLayers,
         toggleVisibility,
@@ -38,8 +44,25 @@ export function PageRedactor({ image }: PageRedactorProps) {
         handleDragMove,
         handleDragEnd,
         snapGuides,
+        addCanvasLayer,
+
     } = useLayers(stageSize);
 
+    // Кисть
+    const { handleMouseDown, handleMouseMove, handleMouseUp, reset } = usePenTool({
+        stageRef,
+        selectedTool,
+        layers,
+        selectedLayerIds,
+        updateLayer,
+        penColor,
+        penWidth,
+    });
+
+    // Сброс при смене инструмента
+    useEffect(() => { reset(); }, [selectedTool, reset]);
+
+    // Загрузка изображения при старте
     useEffect(() => {
         if (image) {
             fitToContent(image.width, image.height);
@@ -47,6 +70,7 @@ export function PageRedactor({ image }: PageRedactorProps) {
         }
     }, [image, addImageLayer, fitToContent]);
 
+    // Горячие клавиши
     useEffect(() => {
         const handleKeyDown = (e: KeyboardEvent) => {
             if ((e.ctrlKey || e.metaKey) && e.key === 'a') {
@@ -56,10 +80,14 @@ export function PageRedactor({ image }: PageRedactorProps) {
             }
             if ((e.ctrlKey || e.metaKey) && e.key === 'z') {
                 e.preventDefault();
-                if (e.shiftKey) {
-                    redo();
-                } else {
-                    undo();
+                if ((e.ctrlKey || e.metaKey) && e.key === 'z') {
+                    e.preventDefault();
+                    if (e.shiftKey) {
+                        redo();
+                    } else {
+                        undo();
+                    }
+                    return;
                 }
                 return;
             }
@@ -90,9 +118,7 @@ export function PageRedactor({ image }: PageRedactorProps) {
                 const img = new Image();
                 img.onload = () => {
                     const center = getStageCenter();
-                    const x = center.x - img.width / 2;
-                    const y = center.y - img.height / 2;
-                    addImageLayer(img, x, y);
+                    addImageLayer(img, center.x - img.width / 2, center.y - img.height / 2);
                 };
                 img.src = event.target?.result as string;
             };
@@ -102,12 +128,7 @@ export function PageRedactor({ image }: PageRedactorProps) {
     }, [addImageLayer, getStageCenter]);
 
     const handleTransformEnd = useCallback((transforms: Array<{
-        id: string;
-        x: number;
-        y: number;
-        width: number;
-        height: number;
-        rotation: number;
+        id: string; x: number; y: number; width: number; height: number; rotation: number;
     }>) => {
         if (transforms.length > 1) {
             updateMultipleLayers(transforms);
@@ -144,11 +165,21 @@ export function PageRedactor({ image }: PageRedactorProps) {
                 onLayerDragMove={handleDragMove}
                 onLayerDragEnd={handleDragEnd}
                 snapGuides={snapGuides}
+                stageRef={stageRef}
+                penHandlers={{
+                    onMouseDown: handleMouseDown,
+                    onMouseMove: handleMouseMove,
+                    onMouseUp: handleMouseUp,
+                }}
             />
 
             <SidebarTools
                 selectedTool={selectedTool}
                 onToolChange={setSelectedTool}
+                penColor={penColor}
+                penWidth={penWidth}
+                onPenColorChange={setPenColor}
+                onPenWidthChange={setPenWidth}
             />
 
             <SidebarLayers
@@ -158,7 +189,7 @@ export function PageRedactor({ image }: PageRedactorProps) {
                 onToggleVisibility={toggleVisibility}
                 onToggleLock={toggleLock}
                 onRemoveLayer={removeLayer}
-                onAddLayer={() => addShapeLayer('rect')}
+                onAddLayer={() => addCanvasLayer(stageSize.width, stageSize.height)}
             />
 
             {previewUrl && <SidebarSummary imageUrl={previewUrl} />}

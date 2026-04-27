@@ -30,7 +30,14 @@ export interface TextLayerData {
     height?: number;
 }
 
-export type LayerData = ImageLayerData | ShapeLayerData | TextLayerData;
+export interface CanvasLayerData {
+    type: 'canvas';
+    src: string;
+    width?: number;
+    height?: number;
+}
+
+export type LayerData = ImageLayerData | ShapeLayerData | TextLayerData | CanvasLayerData;
 
 // Runtime данные (живые объекты Konva)
 export interface LayerRuntime {
@@ -46,7 +53,7 @@ export interface Layer {
     locked: boolean;
     opacity: number;
     zIndex: number;
-    type: 'image' | 'shape' | 'text';
+    type: 'image' | 'shape' | 'text' | 'canvas';
     x?: number;
     y?: number;
     width?: number;

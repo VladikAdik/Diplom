@@ -4,13 +4,13 @@ import { MIN_SCALE, MAX_SCALE } from '../constants/editor';
 
 interface WorkspaceLogicProps {
     onUpdate?: (url: string) => void;
+    stageRef: React.RefObject<Konva.Stage | null>;
 }
 
 const ZOOM_IN_FACTOR = 1.1;   // 10% увеличение
 const ZOOM_OUT_FACTOR = 0.9;  // 10% уменьшение
 
-export function useWorkspaceLogic({ onUpdate }: WorkspaceLogicProps) {
-    const stageRef = useRef<Konva.Stage>(null);
+export function useWorkspaceLogic({ onUpdate, stageRef }: WorkspaceLogicProps) {
     const containerRef = useRef<HTMLDivElement>(null);
     const [scale, setScale] = useState(1);
 
@@ -20,7 +20,7 @@ export function useWorkspaceLogic({ onUpdate }: WorkspaceLogicProps) {
             const url = stageRef.current.toDataURL();
             onUpdate?.(url);
         }
-    }, [onUpdate]);
+    }, [onUpdate, stageRef]);
 
     // === Применение зума к сцене ===
     const applyZoom = useCallback((stage: Konva.Stage, zoomFactor: number) => {
@@ -54,7 +54,7 @@ export function useWorkspaceLogic({ onUpdate }: WorkspaceLogicProps) {
         const zoomFactor = event.deltaY > 0 ? ZOOM_OUT_FACTOR : ZOOM_IN_FACTOR;
 
         applyZoom(stage, zoomFactor);
-    }, [applyZoom]);
+    }, [applyZoom, stageRef]);
 
     // === Навешиваем обработчик на весь контейнер ===
     useEffect(() => {
@@ -79,7 +79,7 @@ export function useWorkspaceLogic({ onUpdate }: WorkspaceLogicProps) {
 
         setScale(1);
         updatePreview();
-    }, [updatePreview]);
+    }, [updatePreview, stageRef]);
 
     return {
         stageRef,

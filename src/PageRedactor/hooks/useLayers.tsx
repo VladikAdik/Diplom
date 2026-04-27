@@ -470,6 +470,27 @@ export function useLayers(stageSize: { width: number; height: number }) {
         };
     }, [layers]);
 
+    const addCanvasLayer = useCallback((width: number, height: number) => {
+        const canvas = document.createElement('canvas');
+        canvas.width = width;
+        canvas.height = height;
+        const dataURL = canvas.toDataURL();
+        canvas.remove();
+
+        addLayer({
+            name: 'Холст',
+            visible: true,
+            locked: false,
+            opacity: 1,
+            type: 'canvas',
+            x: 0, y: 0,
+            width, height,
+            rotation: 0,
+            data: { type: 'canvas', src: dataURL, width, height },
+            runtime: {},
+        });
+    }, [addLayer]);
+
     const handlePositionChange = useCallback(
         (id: string, x: number, y: number, saveHistory: boolean) => {
             if (saveHistory) {
@@ -488,6 +509,10 @@ export function useLayers(stageSize: { width: number; height: number }) {
         },
         [mutate]
     );
+
+    const setLayersDirect = useCallback((newLayers: Layer[]) => {
+    setLayers(newLayers);
+}, []);
 
     const { handleDragMove, handleDragEnd } = useSnapMove({
         layers,
@@ -588,6 +613,7 @@ export function useLayers(stageSize: { width: number; height: number }) {
         addImageLayer,
         addShapeLayer,
         addTextLayer,
+        addCanvasLayer,
         duplicateLayer,
         removeLayer,
         updateLayer,
@@ -595,6 +621,7 @@ export function useLayers(stageSize: { width: number; height: number }) {
         updateMultipleLayers,
         moveLayer,
         getFirstImageBounds,
+        setLayersDirect, 
 
         snapGuides,
         handleDragMove,
