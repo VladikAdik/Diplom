@@ -24,7 +24,7 @@ interface WorkspaceProps {
     onUpdate?: (url: string) => void;
     onLayerDragMove?: (id: string, x: number, y: number, width?: number, height?: number) => void;
     snapGuides: SnapGuide[];
-    stageRef: React.RefObject<Konva.Stage | null>; 
+    stageRef: React.RefObject<Konva.Stage | null>;
     penHandlers?: {
         onMouseDown: () => void;
         onMouseMove: () => void;
@@ -91,14 +91,14 @@ export function Workspace({
         const stage = stageRef.current;
         if (!stage || !penHandlers) return;
 
-        stage.on('mousedown.pen', penHandlers.onMouseDown);
-        stage.on('mousemove.pen', penHandlers.onMouseMove);
-        stage.on('mouseup.pen', penHandlers.onMouseUp);
+        stage.on('mousedown.drawing', penHandlers.onMouseDown);
+        stage.on('mousemove.drawing', penHandlers.onMouseMove);
+        stage.on('mouseup.drawing', penHandlers.onMouseUp);
 
         return () => {
-            stage.off('mousedown.pen');
-            stage.off('mousemove.pen');
-            stage.off('mouseup.pen');
+            stage.off('mousedown.drawing');
+            stage.off('mousemove.drawing');
+            stage.off('mouseup.drawing');
         };
     }, [stageRef, penHandlers]);
 

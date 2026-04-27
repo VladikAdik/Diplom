@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { MIN_PEN_WIDTH, MAX_PEN_WIDTH } from '../../constants/editor';
 
 interface PenPanelProps {
@@ -7,11 +7,26 @@ interface PenPanelProps {
     onColorChange: (color: string) => void;
     onWidthChange: (width: number) => void;
     onClose: () => void;
+    showColor?: boolean;
 }
 
-export function PenPanel({ color, width, onColorChange, onWidthChange }: PenPanelProps) {
+export function PenPanel({
+    color,
+    width,
+    onColorChange,
+    onWidthChange,
+    showColor = true,
+}: PenPanelProps) {
     const [localColor, setLocalColor] = useState(color);
     const [localWidth, setLocalWidth] = useState(String(width));
+
+    useEffect(() => {
+        setLocalColor(color);
+    }, [color]);
+
+    useEffect(() => {
+        setLocalWidth(String(width));
+    }, [width]);
 
     return (
         <div style={{
@@ -21,15 +36,17 @@ export function PenPanel({ color, width, onColorChange, onWidthChange }: PenPane
             borderRadius: '8px',
             boxShadow: '0 4px 12px rgba(0,0,0,0.15)',
         }}>
-            <div style={{ marginBottom: '10px' }}>
-                <label style={{ display: 'block', fontSize: '12px', color: '#666', marginBottom: '4px' }}>Цвет</label>
-                <input
-                    type="color"
-                    value={localColor}
-                    onChange={(e) => { setLocalColor(e.target.value); onColorChange(e.target.value); }}
-                    style={{ width: '100%', height: '30px', border: 'none', cursor: 'pointer' }}
-                />
-            </div>
+            {showColor && (
+                <div style={{ marginBottom: '10px' }}>
+                    <label style={{ display: 'block', fontSize: '12px', color: '#666', marginBottom: '4px' }}>Цвет</label>
+                    <input
+                        type="color"
+                        value={localColor}
+                        onChange={(e) => { setLocalColor(e.target.value); onColorChange(e.target.value); }}
+                        style={{ width: '100%', height: '30px', border: 'none', cursor: 'pointer' }}
+                    />
+                </div>
+            )}
 
             <div style={{ marginBottom: '10px' }}>
                 <label style={{ display: 'block', fontSize: '12px', color: '#666', marginBottom: '4px' }}>

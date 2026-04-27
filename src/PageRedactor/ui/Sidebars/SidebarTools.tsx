@@ -11,8 +11,8 @@ interface SidebarToolsProps {
     onPenWidthChange?: (width: number) => void;
 }
 
-export function SidebarTools({ 
-    selectedTool = 'select', 
+export function SidebarTools({
+    selectedTool = 'select',
     onToolChange,
     penColor = '#000000',
     penWidth = 4,
@@ -21,23 +21,25 @@ export function SidebarTools({
 }: SidebarToolsProps) {
     const { isOpen, open, close, popoverRef } = usePopover();
 
+    const showSettingsPanel = selectedTool === 'pen' || selectedTool === 'eraser';
+
     // Открываем при выборе кисти, закрываем при смене
     useEffect(() => {
-        if (selectedTool === 'pen') {
-            open('pen');
+        if (showSettingsPanel) {
+            open('drawing');
         } else {
             close();
         }
-    }, [selectedTool, open, close]);
+    }, [selectedTool, open, close, showSettingsPanel]);
 
     const handleToolClick = (tool: string) => {
-        if (tool === 'pen' && selectedTool === 'pen') {
-        if (isOpen('pen')) {
-            close();
-        } else {
-            open('pen');
+        if (showSettingsPanel && tool === selectedTool) {
+            if (isOpen('drawing')) {
+                close();
+            } else {
+                open('drawing');
+            }
         }
-    }
         onToolChange?.(tool);
     };
 
@@ -54,14 +56,28 @@ export function SidebarTools({
             gap: '8px',
         }}>
             {/* Панель кисти */}
-            {isOpen('pen') && onPenColorChange && onPenWidthChange && (
+            {selectedTool === 'pen' && isOpen('drawing') && (
                 <div ref={popoverRef}>
                     <PenPanel
                         color={penColor}
                         width={penWidth}
-                        onColorChange={onPenColorChange}
-                        onWidthChange={onPenWidthChange}
+                        onColorChange={onPenColorChange ?? (() => { })}
+                        onWidthChange={onPenWidthChange ?? (() => { })}
                         onClose={close}
+                        showColor={true}
+                    />
+                </div>
+            )}
+
+            {selectedTool === 'eraser' && isOpen('drawing') && (
+                <div ref={popoverRef}>
+                    <PenPanel
+                        color="#ffffff"
+                        width={penWidth}
+                        onColorChange={() => { }}
+                        onWidthChange={onPenWidthChange ?? (() => { })}
+                        onClose={close}
+                        showColor={false}
                     />
                 </div>
             )}

@@ -2,12 +2,13 @@ import { useCallback, useEffect, useRef } from 'react';
 import Konva from 'konva';
 import type { Layer } from '../types/Layer';
 
-interface PenSettings {
+interface DrawingSettings {
     color: string;
     width: number;
+    isEraser: boolean;
 }
 
-interface UsePenToolProps {
+interface UseDrawingToolProps {
     stageRef: React.RefObject<Konva.Stage | null>;
     selectedTool: string;
     layers: Layer[];
@@ -17,7 +18,7 @@ interface UsePenToolProps {
     penWidth?: number;
 }
 
-export function usePenTool({
+export function useDrawingTool({
     stageRef,
     selectedTool,
     layers,
@@ -25,7 +26,7 @@ export function usePenTool({
     updateLayer,
     penColor = '#000000',
     penWidth = 4,
-}: UsePenToolProps) {
+}: UseDrawingToolProps) {
     const isDrawing = useRef(false);
     const lastPos = useRef<{ x: number; y: number } | null>(null);
     const offCanvas = useRef<HTMLCanvasElement | null>(null);
@@ -33,14 +34,21 @@ export function usePenTool({
     const targetLayerId = useRef<string | null>(null);
     const previewLine = useRef<Konva.Line | null>(null);
     const previewLayer = useRef<Konva.Layer | null>(null);
-    const settings = useRef<PenSettings>({ color: penColor, width: penWidth });
+    const settings = useRef<DrawingSettings>({ color: penColor, width: penWidth, isEraser: false });
 
-    // Синхронизация настроек при изменении
     useEffect(() => {
-        settings.current = { color: penColor, width: penWidth };
-    }, [penColor, penWidth]);
+        const isEraser = selectedTool === 'eraser';
+        settings.current = {
+            color: isEraser ? '#000000' : penColor,
+            width: penWidth,
+            isEraser,
+        };
+    }, [penColor, penWidth, selectedTool]);
 
-    // Удалить preview-слой
+    const isActiveTool = useCallback(() => {
+        return selectedTool === 'pen' || selectedTool === 'eraser';
+    }, [selectedTool]);
+
     const removePreview = useCallback(() => {
         if (previewLayer.current) {
             previewLayer.current.destroy();
@@ -50,7 +58,6 @@ export function usePenTool({
         }
     }, [stageRef]);
 
-    // Получить выделенный слой
     const getTargetLayer = useCallback((): Layer | null => {
         if (selectedLayerIds.size !== 1) return null;
         const id = [...selectedLayerIds][0];
@@ -60,40 +67,47 @@ export function usePenTool({
         return layer;
     }, [layers, selectedLayerIds]);
 
-    // Инициализация offscreen canvas
     const initOffCanvas = useCallback((layer: Layer) => {
-        const w = layer.width || 100;
-        const h = layer.height || 100;
+    const w = layer.width || 100;
+    const h = layer.height || 100;
 
-        offCanvas.current = document.createElement('canvas');
-        offCanvas.current.width = w;
-        offCanvas.current.height = h;
-        offCtx.current = offCanvas.current.getContext('2d')!;
+    offCanvas.current = document.createElement('canvas');
+    offCanvas.current.width = w;
+    offCanvas.current.height = h;
+    offCtx.current = offCanvas.current.getContext('2d', { alpha: true })!;
 
-        if (layer.type === 'image' && layer.runtime?.imageElement) {
-            offCtx.current.drawImage(layer.runtime.imageElement, 0, 0, w, h);
-            return;
-        }
+    // 1. Image с готовым элементом — рисуем синхронно
+    if (layer.type === 'image' && layer.runtime?.imageElement) {
+        offCtx.current.drawImage(layer.runtime.imageElement, 0, 0, w, h);
+        return;
+    }
 
+    // 2. Создаём временное изображение и рисуем СИНХРОННО через блокирующую загрузку
+    const src = (layer.data.type === 'image' || layer.data.type === 'canvas')
+        ? layer.data.src : null;
+    if (!src) return;
+
+    // Используем готовый Image из кэша браузера (если загружался ранее)
+    const img = new Image();
+    img.src = src;
+    
+    if (img.complete) {
+        // Уже загружено — рисуем синхронно
+        offCtx.current.drawImage(img, 0, 0, w, h);
+    } else {
+        // Не загружено — ждём (редкий случай)
         offCtx.current.fillStyle = '#ffffff';
         offCtx.current.fillRect(0, 0, w, h);
-
-        const src = (layer.data.type === 'image' || layer.data.type === 'canvas')
-            ? layer.data.src : null;
-        if (!src) return;
-
-        const img = new Image();
         img.onload = () => {
             if (!offCtx.current || !offCanvas.current) return;
             offCtx.current.clearRect(0, 0, w, h);
             offCtx.current.drawImage(img, 0, 0, w, h);
         };
-        img.src = src;
-    }, []);
+    }
+}, []);
 
-    // Начало рисования
     const handleMouseDown = useCallback(() => {
-        if (selectedTool !== 'pen') return;
+        if (!isActiveTool()) return;
         const layer = getTargetLayer();
         if (!layer) return;
 
@@ -107,7 +121,7 @@ export function usePenTool({
         const stage = stageRef.current;
         if (!stage) return;
 
-        const { color, width } = settings.current;
+        const { color, width, isEraser } = settings.current;
 
         previewLayer.current = new Konva.Layer();
         const group = new Konva.Group({
@@ -117,8 +131,9 @@ export function usePenTool({
 
         previewLine.current = new Konva.Line({
             points: [],
-            stroke: color,
+            stroke: isEraser ? '#ffffff' : color,
             strokeWidth: width,
+            opacity: isEraser ? 0.5 : 1,
             lineCap: 'round',
             lineJoin: 'round',
             tension: 0.5,
@@ -128,72 +143,81 @@ export function usePenTool({
         group.add(previewLine.current);
         previewLayer.current.add(group);
         stage.add(previewLayer.current);
-    }, [selectedTool, getTargetLayer, initOffCanvas, removePreview, stageRef]);
+    }, [isActiveTool, getTargetLayer, initOffCanvas, removePreview, stageRef]);
 
-    // Рисование линии на offscreen canvas
     const drawLine = useCallback((x1: number, y1: number, x2: number, y2: number) => {
         const ctx = offCtx.current;
         if (!ctx) return;
-        const { color, width } = settings.current;
+        const { color, width, isEraser } = settings.current;
+
         ctx.beginPath();
         ctx.moveTo(x1, y1);
         ctx.lineTo(x2, y2);
-        ctx.strokeStyle = color;
         ctx.lineWidth = width;
         ctx.lineCap = 'round';
         ctx.lineJoin = 'round';
+
+        if (isEraser) {
+            ctx.globalCompositeOperation = 'destination-out';
+            ctx.strokeStyle = 'rgba(0,0,0,1)';
+        } else {
+            ctx.globalCompositeOperation = 'source-over';
+            ctx.strokeStyle = color;
+        }
         ctx.stroke();
     }, []);
 
-    // Рисование точки на offscreen canvas
     const drawDot = useCallback((x: number, y: number) => {
         const ctx = offCtx.current;
         if (!ctx) return;
-        const { color, width } = settings.current;
-        ctx.fillStyle = color;
+        const { color, width, isEraser } = settings.current;
+
         ctx.beginPath();
         ctx.arc(x, y, width / 2, 0, Math.PI * 2);
+
+        if (isEraser) {
+            ctx.globalCompositeOperation = 'destination-out';
+            ctx.fillStyle = 'rgba(0,0,0,1)';
+        } else {
+            ctx.globalCompositeOperation = 'source-over';
+            ctx.fillStyle = color;
+        }
         ctx.fill();
     }, []);
 
-    // Движение мыши
     const handleMouseMove = useCallback(() => {
-        if (!isDrawing.current || selectedTool !== 'pen') return;
-        const stage = stageRef.current;
-        if (!stage) return;
+    if (!isDrawing.current || !isActiveTool()) return;
+    const stage = stageRef.current;
+    if (!stage) return;
 
-        const pos = stage.getPointerPosition();
-        if (!pos) return;
+    const pos = stage.getPointerPosition();
+    if (!pos) return;
 
-        const layer = layers.find(l => l.id === targetLayerId.current);
-        if (!layer) return;
+    const layer = layers.find(l => l.id === targetLayerId.current);
+    if (!layer) return;
 
-        const scaleX = stage.scaleX();
-        const scaleY = stage.scaleY();
-        const stageX = stage.x();
-        const stageY = stage.y();
+    const scaleX = stage.scaleX();
+    const scaleY = stage.scaleY();
+    
+    // Правильный расчет координат относительно слоя
+    const lx = (pos.x - stage.x()) / scaleX - (layer.x ?? 0);
+    const ly = (pos.y - stage.y()) / scaleY - (layer.y ?? 0);
 
-        const layerScreenX = (layer.x ?? 0) * scaleX + stageX;
-        const layerScreenY = (layer.y ?? 0) * scaleY + stageY;
+    if (lastPos.current) {
+        drawLine(lastPos.current.x, lastPos.current.y, lx, ly);
+    } else {
+        drawDot(lx, ly);
+    }
+    lastPos.current = { x: lx, y: ly };
 
-        const lx = (pos.x - layerScreenX) / scaleX;
-        const ly = (pos.y - layerScreenY) / scaleY;
+    // Обновляем превью
+    if (previewLine.current) {
+        const pts = previewLine.current.points();
+        previewLine.current.points([...pts, lx, ly]);
+        previewLayer.current?.batchDraw();
+    }
+}, [isActiveTool, stageRef, layers, drawLine, drawDot]);
 
-        if (lastPos.current) {
-            drawLine(lastPos.current.x, lastPos.current.y, lx, ly);
-        } else {
-            drawDot(lx, ly);
-        }
-        lastPos.current = { x: lx, y: ly };
-
-        if (previewLine.current) {
-            const pts = previewLine.current.points();
-            previewLine.current.points([...pts, lx, ly]);
-            previewLayer.current?.batchDraw();
-        }
-    }, [selectedTool, stageRef, layers, drawLine, drawDot]);
-
-    // Отпускание мыши — сохраняем результат
     const handleMouseUp = useCallback(() => {
         if (!isDrawing.current) return;
         isDrawing.current = false;
@@ -207,7 +231,7 @@ export function usePenTool({
         const layer = layers.find(l => l.id === id);
         if (!layer) return;
 
-        const dataURL = offCanvas.current.toDataURL();
+        const dataURL = offCanvas.current.toDataURL('image/png');
 
         if (layer.type === 'image') {
             updateLayer(id, {
@@ -230,7 +254,6 @@ export function usePenTool({
         }
     }, [layers, updateLayer, removePreview]);
 
-    // Сброс при смене инструмента
     const reset = useCallback(() => {
         isDrawing.current = false;
         lastPos.current = null;

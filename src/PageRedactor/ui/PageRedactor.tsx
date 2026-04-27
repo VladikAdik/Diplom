@@ -6,7 +6,7 @@ import { SidebarTools } from './Sidebars/SidebarTools';
 import { SidebarSummary } from './Sidebars/SidebarSummary';
 import { useLayers } from '../hooks/useLayers';
 import { useStageSize } from '../hooks/useStageSize';
-import { usePenTool } from '../hooks/usePenTool';
+import { useDrawingTool } from '../hooks/usePenTool';
 import type Konva from 'konva';
 
 interface PageRedactorProps {
@@ -49,7 +49,7 @@ export function PageRedactor({ image }: PageRedactorProps) {
     } = useLayers(stageSize);
 
     // Кисть
-    const { handleMouseDown, handleMouseMove, handleMouseUp, reset } = usePenTool({
+    const { handleMouseDown, handleMouseMove, handleMouseUp, reset } = useDrawingTool({
         stageRef,
         selectedTool,
         layers,
@@ -73,38 +73,64 @@ export function PageRedactor({ image }: PageRedactorProps) {
     // Горячие клавиши
     useEffect(() => {
         const handleKeyDown = (e: KeyboardEvent) => {
-            if ((e.ctrlKey || e.metaKey) && e.key === 'a') {
+            // Игнорируем ввод в текстовые поля
+            if (e.target instanceof HTMLInputElement || e.target instanceof HTMLTextAreaElement) {
+                return;
+            }
+
+            // Ctrl+A — выделить всё
+            if ((e.ctrlKey || e.metaKey) && e.code === 'KeyA') {
                 e.preventDefault();
                 selectAll();
                 return;
             }
-            if ((e.ctrlKey || e.metaKey) && e.key === 'z') {
+
+            // Ctrl+Z — отменить (без Shift)
+            if ((e.ctrlKey || e.metaKey) && e.code === 'KeyZ' && !e.shiftKey) {
                 e.preventDefault();
-                if ((e.ctrlKey || e.metaKey) && e.key === 'z') {
-                    e.preventDefault();
-                    if (e.shiftKey) {
-                        redo();
-                    } else {
-                        undo();
-                    }
-                    return;
-                }
+                undo();
                 return;
             }
-            if ((e.ctrlKey || e.metaKey) && e.key === 'y') {
+
+            // Ctrl+Shift+Z или Ctrl+Y — повторить
+            if ((e.ctrlKey || e.metaKey) && (e.code === 'KeyY' || (e.code === 'KeyZ' && e.shiftKey))) {
                 e.preventDefault();
                 redo();
                 return;
             }
-            if (e.key === 'Delete') {
+
+            // Delete или Backspace — удалить выделенные слои
+            if (e.code === 'Delete' || e.code === 'Backspace') {
                 e.preventDefault();
                 selectedLayerIds.forEach(id => removeLayer(id));
                 return;
             }
+
+            // Escape — снять выделение
+            if (e.code === 'Escape') {
+                e.preventDefault();
+                clearSelection();
+                return;
+            }
+
+            // Инструменты (используем code для независимости от раскладки)
+            if (e.code === 'KeyV') {
+                setSelectedTool('select');
+                return;
+            }
+            if (e.code === 'KeyP') {
+                setSelectedTool('pen');
+                return;
+            }
+            if (e.code === 'KeyE') {
+                setSelectedTool('eraser');
+                return;
+            }
         };
+
         window.addEventListener('keydown', handleKeyDown);
         return () => window.removeEventListener('keydown', handleKeyDown);
-    }, [undo, redo, selectAll, selectedLayerIds, removeLayer]);
+    }, [undo, redo, selectAll, clearSelection, selectedLayerIds, removeLayer]);
 
     const handleLoadImage = useCallback(() => {
         const input = document.createElement('input');
@@ -138,10 +164,41 @@ export function PageRedactor({ image }: PageRedactorProps) {
         }
     }, [updateLayerPosition, updateMultipleLayers]);
 
+    const handleSaveAsPNG = useCallback(() => {
+        if (!stageRef.current) return;
+
+        const dataURL = stageRef.current.toDataURL({
+            mimeType: 'image/png',
+            pixelRatio: 2, // 2x качество
+        });
+
+        const link = document.createElement('a');
+        link.download = 'редактор-изображение.png';
+        link.href = dataURL;
+        link.click();
+    }, []);
+
+    const handleSaveAsJPG = useCallback(() => {
+        if (!stageRef.current) return;
+
+        const dataURL = stageRef.current.toDataURL({
+            mimeType: 'image/jpeg',
+            quality: 0.95,
+            pixelRatio: 2,
+        });
+
+        const link = document.createElement('a');
+        link.download = 'редактор-изображение.jpg';
+        link.href = dataURL;
+        link.click();
+    }, []);
+
     return (
         <div>
             <Header
                 onLoadImage={handleLoadImage}
+                onSaveAsPNG={handleSaveAsPNG}
+                onSaveAsJPG={handleSaveAsJPG}
                 onUndo={undo}
                 onRedo={redo}
                 canUndo={canUndo}

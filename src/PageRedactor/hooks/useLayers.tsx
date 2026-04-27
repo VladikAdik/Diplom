@@ -185,6 +185,13 @@ function serializeLayer(layer: Layer): Layer {
         });
     }
 
+    if (layer.type === 'canvas') {
+        Object.assign(syncedData, {
+            width: layer.width,
+            height: layer.height,
+        });
+    }
+
     return {
         ...layer,
         data: syncedData,
@@ -232,6 +239,10 @@ async function deserializeLayer(layer: Layer): Promise<Layer> {
             }
 
             return { ...layer, runtime: { shapeConfig } };
+        }
+
+        case 'canvas': {
+            return { ...layer, runtime: {} };
         }
 
         case 'text': {
@@ -511,8 +522,8 @@ export function useLayers(stageSize: { width: number; height: number }) {
     );
 
     const setLayersDirect = useCallback((newLayers: Layer[]) => {
-    setLayers(newLayers);
-}, []);
+        setLayers(newLayers);
+    }, []);
 
     const { handleDragMove, handleDragEnd } = useSnapMove({
         layers,
@@ -621,7 +632,7 @@ export function useLayers(stageSize: { width: number; height: number }) {
         updateMultipleLayers,
         moveLayer,
         getFirstImageBounds,
-        setLayersDirect, 
+        setLayersDirect,
 
         snapGuides,
         handleDragMove,

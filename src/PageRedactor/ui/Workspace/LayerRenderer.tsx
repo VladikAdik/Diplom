@@ -18,10 +18,16 @@ interface LayerRendererProps {
 function useImage(url: string): HTMLImageElement | null {
     const [image, setImage] = useState<HTMLImageElement | null>(null);
     useEffect(() => {
+        let cancelled = false;
         const img = new Image();
-        img.onload = () => setImage(img);
+        img.onload = () => {
+            if (!cancelled) setImage(img);
+        };
         img.src = url;
-        return () => { img.onload = null; };
+        return () => { 
+            cancelled = true;
+            img.onload = null;
+        };
     }, [url]);
     return image;
 }
