@@ -35,8 +35,7 @@ export function SidebarTools({
     onStartCrop,
     isCropping = false,
     onApplyCrop,
-    onCancelCrop,
-    cropShape = 'rect'
+    onCancelCrop
 }: SidebarToolsProps) {
     const { isOpen, open, close, popoverRef } = usePopover();
 

@@ -34,6 +34,7 @@ interface WorkspaceProps {
     cropHandlers?: {
         onMouseDown: () => void;
         onMouseMove: () => void;
+        onMouseUp: () => void;  // ← добавить
     };
     rectArea: { x: number; y: number; width: number; height: number };
     freePoints: { x: number; y: number }[];
@@ -119,6 +120,7 @@ export function Workspace({
 
         stage.on('mousedown.crop', cropHandlers.onMouseDown);
         stage.on('mousemove.crop', cropHandlers.onMouseMove);
+        stage.on('mouseup.crop', cropHandlers.onMouseUp);
 
         return () => {
             stage.off('mousedown.crop');
@@ -192,7 +194,7 @@ export function Workspace({
                     cropShape={cropShape}
                     rectArea={rectArea}
                     freePoints={freePoints}
-                    targetLayer={activeLayer}
+                    targetLayer={activeLayer} 
                 />
 
                 {/* Рамка выделения */}

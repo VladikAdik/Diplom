@@ -8,7 +8,6 @@ import { useLayers } from '../hooks/useLayers';
 import { useStageSize } from '../hooks/useStageSize';
 import { useDrawingTool } from '../hooks/usePenTool';
 import { useCropTool } from '../hooks/useCropTool';
-import { CropOverlay } from './Workspace/CropOverlay';
 import type Konva from 'konva';
 
 interface PageRedactorProps {
@@ -53,6 +52,7 @@ export function PageRedactor({ image }: PageRedactorProps) {
 
     } = useLayers(stageSize);
 
+    const targetLayerId = selectedLayerIds.size === 1 ? [...selectedLayerIds][0] : null;
     const {
         isCropping,
         cropShape,
@@ -61,14 +61,16 @@ export function PageRedactor({ image }: PageRedactorProps) {
         startCrop,
         handleMouseDown: cropMouseDown,
         handleMouseMove: cropMouseMove,
+        handleMouseUp: cropMouseUp,
         applyCrop,
         cancelCrop,
     } = useCropTool({
         stageRef,
         layers,
-        selectedLayerIds,
+        targetLayerId,
+        selectedTool,
         updateLayer,
-        onCropComplete: () => setSelectedTool('select') // Добавить эту строку
+        onCropComplete: () => setSelectedTool('select')
     });
 
     // Кисть
@@ -259,6 +261,7 @@ export function PageRedactor({ image }: PageRedactorProps) {
                 cropHandlers={{
                     onMouseDown: cropMouseDown,
                     onMouseMove: cropMouseMove,
+                    onMouseUp: cropMouseUp,
                 }}
                 rectArea={rectArea}      // добавить в WorkspaceProps
                 freePoints={freePoints}  // добавить в WorkspaceProps
