@@ -1,12 +1,7 @@
-import { useCallback } from 'react';
+import { useCallback, useRef } from 'react';
 import type { Layer } from '../types/Layer';
 
 export type FilterType = 'none' | 'grayscale' | 'sepia' | 'invert' | 'blur' | 'brightness' | 'contrast' | 'saturate';
-
-export interface FilterConfig {
-    type: FilterType;
-    value: number;
-}
 
 function getCSSFilter(type: string, value: number): string {
     switch (type) {
@@ -21,54 +16,137 @@ function getCSSFilter(type: string, value: number): string {
     }
 }
 
-// Вспомогательная функция для получения src
 function getLayerSrc(layer: Layer): string | null {
     const data = layer.data as { src?: string };
     return data.src || null;
 }
 
+function cloneLayer(layer: Layer): Layer {
+    return {
+        ...layer,
+        data: { ...layer.data },
+        runtime: layer.runtime ? {
+            imageElement: layer.runtime.imageElement,
+            shapeConfig: layer.runtime.shapeConfig ? { ...layer.runtime.shapeConfig } : undefined,
+            textConfig: layer.runtime.textConfig ? { ...layer.runtime.textConfig } : undefined,
+        } : undefined,
+    };
+}
+
 export function useFilters(
-    mutate: (mutation: (prevLayers: Layer[]) => Layer[]) => void
+    layers: Layer[],
+    setLayers: (value: Layer[] | ((prev: Layer[]) => Layer[])) => void,
+    mutate: (mutation: (prev: Layer[]) => Layer[]) => void
 ) {
-    const applyFilter = useCallback((id: string, filterType: FilterType, value: number) => {
-        if (filterType === 'none' || value === 0) return;
+    const originalLayersRef = useRef<Layer[] | null>(null);
 
-        mutate(prev => {
-            return prev.map(layer => {
-                if (layer.id !== id) return layer;
+    const previewFilter = useCallback((filterType: FilterType, value: number, selectedIds: Set<string>) => {
+        if (!originalLayersRef.current) {
+            originalLayersRef.current = layers.map(cloneLayer);
+        }
 
-                const isImage = layer.type === 'image' && layer.runtime?.imageElement;
-                const isCanvas = layer.type === 'canvas';
+        const originals = originalLayersRef.current;
+
+        setLayers((prev: Layer[]): Layer[] => {
+            return prev.map((layer: Layer): Layer => {
+                if (!selectedIds.has(layer.id)) return layer;
+
+                const original = originals.find((o: Layer) => o.id === layer.id);
+                if (!original) return layer;
+
+                const isImage = original.type === 'image' && original.runtime?.imageElement;
+                const isCanvas = original.type === 'canvas';
 
                 if (!isImage && !isCanvas) return layer;
 
-                // Получаем исходное изображение
-                const sourceImg = isImage 
-                    ? layer.runtime!.imageElement!
-                    : (() => {
-                        const src = getLayerSrc(layer);
-                        if (!src) return null;
-                        const img = new Image();
-                        img.src = src;
-                        return img;
-                      })();
+                let sourceImg: HTMLImageElement | null = null;
 
-                if (!sourceImg) return layer;
+                if (isImage && original.runtime?.imageElement) {
+                    sourceImg = original.runtime.imageElement;
+                } else if (isCanvas) {
+                    const src = getLayerSrc(original);
+                    if (src) {
+                        sourceImg = new Image();
+                        sourceImg.src = src;
+                    }
+                }
+
+                if (!sourceImg || !sourceImg.width || !sourceImg.height) return layer;
 
                 const canvas = document.createElement('canvas');
                 canvas.width = sourceImg.width;
                 canvas.height = sourceImg.height;
                 const ctx = canvas.getContext('2d')!;
-                
-                ctx.filter = getCSSFilter(filterType, value);
+
+                if (filterType !== 'none' && value !== 0) {
+                    ctx.filter = getCSSFilter(filterType, value);
+                }
                 ctx.drawImage(sourceImg, 0, 0);
-                
+
                 const dataURL = canvas.toDataURL();
                 const newImg = new Image();
                 newImg.src = dataURL;
-                
                 canvas.remove();
-                
+
+                return {
+                    ...layer,
+                    type: 'canvas' as const,
+                    data: {
+                        type: 'canvas' as const,
+                        src: dataURL,
+                        width: layer.width,
+                        height: layer.height,
+                    },
+                    runtime: { imageElement: newImg },
+                };
+            });
+        });
+    }, [layers, setLayers]);
+
+    const applyFilter = useCallback((filterType: FilterType, value: number, selectedIds: Set<string>) => {
+        const originals = originalLayersRef.current;
+        originalLayersRef.current = null;
+
+        mutate((prev: Layer[]): Layer[] => {
+            return prev.map((layer: Layer): Layer => {
+                if (!selectedIds.has(layer.id)) return layer;
+
+                const original = originals?.find((o: Layer) => o.id === layer.id) || layer;
+
+                const isImage = original.type === 'image' && original.runtime?.imageElement;
+                const isCanvas = original.type === 'canvas';
+
+                if (!isImage && !isCanvas) return layer;
+
+                let sourceImg: HTMLImageElement | null = null;
+
+                if (isImage && original.runtime?.imageElement) {
+                    sourceImg = original.runtime.imageElement;
+                } else if (isCanvas) {
+                    const src = getLayerSrc(original);
+                    if (src) {
+                        sourceImg = new Image();
+                        sourceImg.src = src;
+                    }
+                }
+
+                if (!sourceImg || !sourceImg.width || !sourceImg.height) return layer;
+
+                const canvas = document.createElement('canvas');
+                canvas.width = sourceImg.width;
+                canvas.height = sourceImg.height;
+                const ctx = canvas.getContext('2d')!;
+
+                if (filterType !== 'none' && value !== 0) {
+                    ctx.filter = getCSSFilter(filterType, value);
+                }
+                ctx.drawImage(sourceImg, 0, 0);
+
+                const dataURL = canvas.toDataURL();
+                const newImg = new Image();
+                newImg.src = dataURL;
+                canvas.remove();
+
                 return {
                     ...layer,
                     type: 'canvas' as const,
@@ -84,40 +162,12 @@ export function useFilters(
         });
     }, [mutate]);
 
-    // Превью фильтра (только для image/canvas слоёв)
-    const getFilterPreview = useCallback((layer: Layer, filterType: FilterType, value: number): string | null => {
-        if (filterType === 'none' || value === 0) return null;
+    const cancelPreview = useCallback(() => {
+        if (originalLayersRef.current) {
+            setLayers(originalLayersRef.current);
+            originalLayersRef.current = null;
+        }
+    }, [setLayers]);
 
-        const isImage = layer.type === 'image' && layer.runtime?.imageElement;
-        const isCanvas = layer.type === 'canvas';
-
-        if (!isImage && !isCanvas) return null;
-
-        const sourceImg = isImage 
-            ? layer.runtime!.imageElement!
-            : (() => {
-                const src = getLayerSrc(layer);
-                if (!src) return null;
-                const img = new Image();
-                img.src = src;
-                return img;
-              })();
-
-        if (!sourceImg) return null;
-
-        const canvas = document.createElement('canvas');
-        canvas.width = sourceImg.width;
-        canvas.height = sourceImg.height;
-        const ctx = canvas.getContext('2d')!;
-        
-        ctx.filter = getCSSFilter(filterType, value);
-        ctx.drawImage(sourceImg, 0, 0);
-        
-        const dataURL = canvas.toDataURL();
-        canvas.remove();
-        
-        return dataURL;
-    }, []);
-
-    return { applyFilter, getFilterPreview };
+    return { previewFilter, applyFilter, cancelPreview };
 }

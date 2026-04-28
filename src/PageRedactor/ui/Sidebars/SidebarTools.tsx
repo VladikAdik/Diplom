@@ -11,7 +11,10 @@ interface SidebarToolsProps {
     penWidth?: number;
     onPenColorChange?: (color: string) => void;
     onPenWidthChange?: (width: number) => void;
+    selectedLayerIds?: Set<string>;
+    onFilterPreview?: (filter: FilterType, value: number) => void;
     onFilterApply?: (filter: FilterType, value: number) => void;
+    onFilterCancel?: () => void;
 }
 
 export function SidebarTools({
@@ -21,7 +24,9 @@ export function SidebarTools({
     penWidth = 4,
     onPenColorChange,
     onPenWidthChange,
+    onFilterPreview,
     onFilterApply,
+    onFilterCancel,   
 }: SidebarToolsProps) {
     const { isOpen, open, close, popoverRef } = usePopover();
 
@@ -92,8 +97,16 @@ export function SidebarTools({
                     <FilterPanel
                         currentFilter="none"
                         filterValue={0}
-                        onApply={(filter, value) => onFilterApply?.(filter, value)}
-                        onClose={close}
+                        onFilterChange={(filter, value) => {
+                            onFilterPreview?.(filter, value);
+                        }}
+                        onApply={(filter, value) => {
+                            onFilterApply?.(filter, value);
+                        }}
+                        onClose={() => {
+                            onFilterCancel?.();
+                            close();
+                        }}
                     />
                 </div>
             )}

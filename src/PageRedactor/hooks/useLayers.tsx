@@ -303,7 +303,7 @@ export function useLayers(stageSize: { width: number; height: number }) {
         [saveState]
     );
 
-    const { applyFilter, getFilterPreview } = useFilters(mutate);
+    const { previewFilter, applyFilter, cancelPreview } = useFilters(layers, setLayers, mutate);
 
     // ============================================================
     // CRUD операции
@@ -658,7 +658,8 @@ export function useLayers(stageSize: { width: number; height: number }) {
         canRedo,
         clearAll,
 
+        previewFilter,
         applyFilter,
-        getFilterPreview,
+        cancelPreview,
     };
 }

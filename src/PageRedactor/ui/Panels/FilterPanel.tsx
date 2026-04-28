@@ -5,6 +5,7 @@ export type FilterType = 'none' | 'grayscale' | 'sepia' | 'invert' | 'blur' | 'b
 interface FilterPanelProps {
     currentFilter: FilterType;
     filterValue: number;
+    onFilterChange: (filter: FilterType, value: number) => void;
     onApply: (filter: FilterType, value: number) => void;
     onClose: () => void;
 }
@@ -12,6 +13,7 @@ interface FilterPanelProps {
 export function FilterPanel({
     currentFilter,
     filterValue,
+    onFilterChange,
     onApply,
     onClose,
 }: FilterPanelProps) {
@@ -39,14 +41,15 @@ export function FilterPanel({
         }}>
             <h4 style={{ margin: '0 0 12px 0', fontSize: '14px' }}>Фильтры</h4>
 
-            {/* Выбор фильтра */}
             <div style={{ marginBottom: '12px' }}>
                 <select
                     value={filter}
                     onChange={(e) => {
                         const newFilter = e.target.value as FilterType;
                         setFilter(newFilter);
-                        setValue(newFilter === 'none' ? 0 : 50);
+                        const newVal = newFilter === 'none' ? 0 : 50;
+                        setValue(newVal);
+                        onFilterChange(newFilter, newVal);
                     }}
                     style={{
                         width: '100%',
@@ -62,7 +65,6 @@ export function FilterPanel({
                 </select>
             </div>
 
-            {/* Слайдер значения */}
             {filter !== 'none' && (
                 <div style={{ marginBottom: '12px' }}>
                     <label style={{ display: 'block', fontSize: '12px', color: '#666', marginBottom: '4px' }}>
@@ -74,13 +76,16 @@ export function FilterPanel({
                         max={filters.find(f => f.type === filter)?.max || 100}
                         step={filters.find(f => f.type === filter)?.step || 1}
                         value={value}
-                        onChange={(e) => setValue(Number(e.target.value))}
+                        onChange={(e) => {
+                            const newVal = Number(e.target.value);
+                            setValue(newVal);
+                            onFilterChange(filter, newVal);
+                        }}
                         style={{ width: '100%' }}
                     />
                 </div>
             )}
 
-            {/* Кнопки */}
             <div style={{ display: 'flex', gap: '8px', justifyContent: 'flex-end' }}>
                 <button
                     onClick={onClose}

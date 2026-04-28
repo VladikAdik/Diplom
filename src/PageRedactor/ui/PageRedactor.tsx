@@ -45,7 +45,9 @@ export function PageRedactor({ image }: PageRedactorProps) {
         handleDragEnd,
         snapGuides,
         addCanvasLayer,
+        previewFilter,
         applyFilter,
+        cancelPreview,
 
     } = useLayers(stageSize);
 
@@ -238,9 +240,14 @@ export function PageRedactor({ image }: PageRedactorProps) {
                 penWidth={penWidth}
                 onPenColorChange={setPenColor}
                 onPenWidthChange={setPenWidth}
-                onFilterApply={(filter, value) => {
-                    selectedLayerIds.forEach(id => applyFilter(id, filter, value));
+                selectedLayerIds={selectedLayerIds}
+                onFilterPreview={(filter, value) => {
+                    previewFilter(filter, value, selectedLayerIds);
                 }}
+                onFilterApply={(filter, value) => {
+                    applyFilter(filter, value, selectedLayerIds);
+                }}
+                onFilterCancel={cancelPreview}
             />
 
             <SidebarLayers
