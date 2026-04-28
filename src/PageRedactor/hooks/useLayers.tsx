@@ -3,6 +3,7 @@ import type { Layer } from '../types/Layer';
 import { useHistory } from './useHistory';
 import { useSnapMove, type SnapGuide } from './useSnapMove';
 import { imageToDataURL } from '../utils/imageUtils';
+import { useFilters } from './useFilters';
 import {
     DEFAULT_LAYER_X, DEFAULT_LAYER_Y, DEFAULT_LAYER_OPACITY,
     DEFAULT_SHAPE_WIDTH, DEFAULT_SHAPE_HEIGHT,
@@ -301,6 +302,8 @@ export function useLayers(stageSize: { width: number; height: number }) {
         },
         [saveState]
     );
+
+    const { applyFilter, getFilterPreview } = useFilters(mutate);
 
     // ============================================================
     // CRUD операции
@@ -654,5 +657,8 @@ export function useLayers(stageSize: { width: number; height: number }) {
         canUndo,
         canRedo,
         clearAll,
+
+        applyFilter,
+        getFilterPreview,
     };
 }

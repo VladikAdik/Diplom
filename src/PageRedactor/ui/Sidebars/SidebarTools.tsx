@@ -1,5 +1,7 @@
 import { useEffect } from 'react';
 import { PenPanel } from '../Panels/PenPanel';
+import { FilterPanel } from '../Panels/FilterPanel';
+import type { FilterType } from '../Panels/FilterPanel';
 import { usePopover } from '../../hooks/usePopover';
 
 interface SidebarToolsProps {
@@ -9,6 +11,7 @@ interface SidebarToolsProps {
     penWidth?: number;
     onPenColorChange?: (color: string) => void;
     onPenWidthChange?: (width: number) => void;
+    onFilterApply?: (filter: FilterType, value: number) => void;
 }
 
 export function SidebarTools({
@@ -18,12 +21,12 @@ export function SidebarTools({
     penWidth = 4,
     onPenColorChange,
     onPenWidthChange,
+    onFilterApply,
 }: SidebarToolsProps) {
     const { isOpen, open, close, popoverRef } = usePopover();
 
-    const showSettingsPanel = selectedTool === 'pen' || selectedTool === 'eraser';
+    const showSettingsPanel = selectedTool === 'pen' || selectedTool === 'eraser' || selectedTool === 'filter';
 
-    // Открываем при выборе кисти, закрываем при смене
     useEffect(() => {
         if (showSettingsPanel) {
             open('drawing');
@@ -69,6 +72,7 @@ export function SidebarTools({
                 </div>
             )}
 
+            {/* Панель ластика */}
             {selectedTool === 'eraser' && isOpen('drawing') && (
                 <div ref={popoverRef}>
                     <PenPanel
@@ -82,6 +86,17 @@ export function SidebarTools({
                 </div>
             )}
 
+            {/* Панель фильтров */}
+            {selectedTool === 'filter' && isOpen('drawing') && (
+                <div ref={popoverRef}>
+                    <FilterPanel
+                        currentFilter="none"
+                        filterValue={0}
+                        onApply={(filter, value) => onFilterApply?.(filter, value)}
+                        onClose={close}
+                    />
+                </div>
+            )}
             {/* Кнопки инструментов */}
             <div style={{
                 background: 'white',
@@ -110,6 +125,12 @@ export function SidebarTools({
                         color: selectedTool === 'eraser' ? 'white' : 'black',
                         cursor: 'pointer', padding: '6px 10px', border: 'none', borderRadius: '6px',
                     }}>🧽</button>
+                <button onClick={() => handleToolClick('filter')}
+                    style={{
+                        background: selectedTool === 'filter' ? '#2196F3' : '#ddd',
+                        color: selectedTool === 'filter' ? 'white' : 'black',
+                        cursor: 'pointer', padding: '6px 10px', border: 'none', borderRadius: '6px',
+                    }} title="Фильтры (F)">🎨</button>
             </div>
         </div>
     );
