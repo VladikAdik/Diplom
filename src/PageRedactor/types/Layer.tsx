@@ -46,6 +46,8 @@ export interface CropLayerData {
     originalHeight: number;
     cropShape: 'rect' | 'free';
     cropPoints?: number[];
+    width?: number;   // ← добавь
+    height?: number; 
 }
 
 export type LayerData = ImageLayerData | ShapeLayerData | TextLayerData | CanvasLayerData | CropLayerData;
