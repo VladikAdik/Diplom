@@ -37,7 +37,16 @@ export interface CanvasLayerData {
     height?: number;
 }
 
-export type LayerData = ImageLayerData | ShapeLayerData | TextLayerData | CanvasLayerData;
+export interface CropLayerData {
+    type: 'crop';
+    src: string;
+    originalWidth: number;
+    originalHeight: number;
+    cropShape: 'rect' | 'free';
+    cropPoints?: number[];
+}
+
+export type LayerData = ImageLayerData | ShapeLayerData | TextLayerData | CanvasLayerData | CropLayerData;
 
 // Runtime данные (живые объекты Konva)
 export interface LayerRuntime {
@@ -53,7 +62,7 @@ export interface Layer {
     locked: boolean;
     opacity: number;
     zIndex: number;
-    type: 'image' | 'shape' | 'text' | 'canvas';
+    type: 'image' | 'shape' | 'text' | 'canvas' | 'crop';
     x?: number;
     y?: number;
     width?: number;
@@ -62,3 +71,4 @@ export interface Layer {
     data: LayerData;
     runtime?: LayerRuntime;  
 }
+

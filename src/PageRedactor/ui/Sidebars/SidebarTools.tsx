@@ -15,6 +15,11 @@ interface SidebarToolsProps {
     onFilterPreview?: (filter: FilterType, value: number) => void;
     onFilterApply?: (filter: FilterType, value: number) => void;
     onFilterCancel?: () => void;
+    onStartCrop?: (shape: 'rect' | 'free') => void;
+    isCropping?: boolean;
+    cropShape?: 'rect' | 'free';
+    onApplyCrop?: () => void;
+    onCancelCrop?: () => void;
 }
 
 export function SidebarTools({
@@ -26,7 +31,12 @@ export function SidebarTools({
     onPenWidthChange,
     onFilterPreview,
     onFilterApply,
-    onFilterCancel,   
+    onFilterCancel,
+    onStartCrop,
+    isCropping = false,
+    onApplyCrop,
+    onCancelCrop,
+    cropShape = 'rect'
 }: SidebarToolsProps) {
     const { isOpen, open, close, popoverRef } = usePopover();
 
@@ -144,6 +154,23 @@ export function SidebarTools({
                         color: selectedTool === 'filter' ? 'white' : 'black',
                         cursor: 'pointer', padding: '6px 10px', border: 'none', borderRadius: '6px',
                     }} title="Фильтры (F)">🎨</button>
+                <button onClick={() => onStartCrop?.('rect')}
+                    style={{
+                        background: selectedTool === 'cropRect' ? '#2196F3' : '#ddd',
+                        cursor: 'pointer', padding: '6px 10px', border: 'none', borderRadius: '6px',
+                    }} title="Вырезать прямоугольником (R)">✂️🔲</button>
+                <button onClick={() => onStartCrop?.('free')}
+                    style={{
+                        background: selectedTool === 'cropFree' ? '#2196F3' : '#ddd',
+                        cursor: 'pointer', padding: '6px 10px', border: 'none', borderRadius: '6px',
+                    }} title="Вырезать произвольно (O)">✂️✏️</button>
+
+                {isCropping && (
+                    <div style={{ display: 'flex', gap: '4px', marginLeft: '4px' }}>
+                        <button onClick={onApplyCrop} style={{ background: '#4caf50', color: 'white', border: 'none', borderRadius: '4px', padding: '4px 8px', cursor: 'pointer' }}>✓</button>
+                        <button onClick={onCancelCrop} style={{ background: '#f44336', color: 'white', border: 'none', borderRadius: '4px', padding: '4px 8px', cursor: 'pointer' }}>✗</button>
+                    </div>
+                )}
             </div>
         </div>
     );

@@ -7,6 +7,8 @@ import { SidebarSummary } from './Sidebars/SidebarSummary';
 import { useLayers } from '../hooks/useLayers';
 import { useStageSize } from '../hooks/useStageSize';
 import { useDrawingTool } from '../hooks/usePenTool';
+import { useCropTool } from '../hooks/useCropTool';
+import { CropOverlay } from './Workspace/CropOverlay';
 import type Konva from 'konva';
 
 interface PageRedactorProps {
@@ -50,6 +52,24 @@ export function PageRedactor({ image }: PageRedactorProps) {
         cancelPreview,
 
     } = useLayers(stageSize);
+
+    const {
+        isCropping,
+        cropShape,
+        rectArea,
+        freePoints,
+        startCrop,
+        handleMouseDown: cropMouseDown,
+        handleMouseMove: cropMouseMove,
+        applyCrop,
+        cancelCrop,
+    } = useCropTool({
+        stageRef,
+        layers,
+        selectedLayerIds,
+        updateLayer,
+        onCropComplete: () => setSelectedTool('select') // Добавить эту строку
+    });
 
     // Кисть
     const { handleMouseDown, handleMouseMove, handleMouseUp, reset } = useDrawingTool({
@@ -196,6 +216,11 @@ export function PageRedactor({ image }: PageRedactorProps) {
         link.click();
     }, []);
 
+    const handleStartCrop = useCallback((shape: 'rect' | 'free') => {
+        setSelectedTool(shape === 'rect' ? 'cropRect' : 'cropFree');
+        startCrop(shape);
+    }, [startCrop]);
+
     return (
         <div>
             <Header
@@ -231,6 +256,12 @@ export function PageRedactor({ image }: PageRedactorProps) {
                     onMouseMove: handleMouseMove,
                     onMouseUp: handleMouseUp,
                 }}
+                cropHandlers={{
+                    onMouseDown: cropMouseDown,
+                    onMouseMove: cropMouseMove,
+                }}
+                rectArea={rectArea}      // добавить в WorkspaceProps
+                freePoints={freePoints}  // добавить в WorkspaceProps
             />
 
             <SidebarTools
@@ -248,6 +279,11 @@ export function PageRedactor({ image }: PageRedactorProps) {
                     applyFilter(filter, value, selectedLayerIds);
                 }}
                 onFilterCancel={cancelPreview}
+                onStartCrop={handleStartCrop}
+                isCropping={isCropping}
+                cropShape={cropShape}
+                onApplyCrop={applyCrop}
+                onCancelCrop={cancelCrop}
             />
 
             <SidebarLayers

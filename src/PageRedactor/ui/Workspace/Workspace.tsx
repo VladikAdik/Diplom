@@ -9,6 +9,7 @@ import { SelectionRectLayer } from './SelectionRectLayer';
 import type { SnapGuide } from '../../hooks/useSnapMove';
 import type { Layer } from '../../types/Layer';
 import type Konva from 'konva';
+import { CropOverlay } from './CropOverlay';
 
 // === Типы ===
 interface WorkspaceProps {
@@ -30,6 +31,13 @@ interface WorkspaceProps {
         onMouseMove: () => void;
         onMouseUp: () => void;
     };
+    cropHandlers?: {
+        onMouseDown: () => void;
+        onMouseMove: () => void;
+    };
+    rectArea: { x: number; y: number; width: number; height: number };
+    freePoints: { x: number; y: number }[];
+    targetLayer?: Layer | null;
 }
 
 type TransformData = {
@@ -73,6 +81,9 @@ export function Workspace({
     onUpdate,
     onLayerDragMove,
     snapGuides,
+    cropHandlers,
+    rectArea,
+    freePoints,
 }: WorkspaceProps) {
 
     // Управление сценой
@@ -102,6 +113,19 @@ export function Workspace({
         };
     }, [stageRef, penHandlers]);
 
+    useEffect(() => {
+        const stage = stageRef.current;
+        if (!stage || !cropHandlers || selectedTool !== 'cropRect' && selectedTool !== 'cropFree') return;
+
+        stage.on('mousedown.crop', cropHandlers.onMouseDown);
+        stage.on('mousemove.crop', cropHandlers.onMouseMove);
+
+        return () => {
+            stage.off('mousedown.crop');
+            stage.off('mousemove.crop');
+        };
+    }, [stageRef, cropHandlers, selectedTool]);
+
     // Конец перетаскивания слоя
     const handleDragEnd = useCallback(
         (layerId: string, x: number, y: number) => {
@@ -122,6 +146,9 @@ export function Workspace({
 
     // Трансформер показываем только в режиме выделения
     const showTransformer = selectedTool === 'select';
+    const isCropping = selectedTool === 'cropRect' || selectedTool === 'cropFree';
+    const cropShape = selectedTool === 'cropRect' ? 'rect' : 'free';
+    const activeLayer = layers.find(l => selectedLayerIds.has(l.id));
 
     return (
         <div ref={containerRef} style={CONTAINER_STYLE}>
@@ -159,6 +186,14 @@ export function Workspace({
                         stageHeight={stageSize.height}
                     />
                 </KonvaLayer>
+
+                <CropOverlay
+                    isCropping={isCropping}
+                    cropShape={cropShape}
+                    rectArea={rectArea}
+                    freePoints={freePoints}
+                    targetLayer={activeLayer}
+                />
 
                 {/* Рамка выделения */}
                 <SelectionRectLayer
