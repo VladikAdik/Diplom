@@ -242,6 +242,10 @@ export function PageRedactor({ image }: PageRedactorProps) {
 
     // Добавьте обработчики:
     const handleEditText = useCallback((id: string, node: Konva.Text) => {
+        // Скрываем оригинальный текст
+        node.visible(false);
+        node.getLayer()?.batchDraw();
+
         setEditingText({ id, node });
     }, []);
 
@@ -262,9 +266,22 @@ export function PageRedactor({ image }: PageRedactorProps) {
                     }
                 });
             }
+            // Показываем обратно
+            editingText.node.visible(true);
+            editingText.node.getLayer()?.batchDraw();
             setEditingText(null);
         }
     }, [editingText, updateLayer, layers]);
+
+    const handleCancelText = useCallback(() => {
+        if (editingText) {
+            editingText.node.visible(true);
+            editingText.node.getLayer()?.batchDraw();
+            setEditingText(null);
+        }
+    }, [editingText]);
+
+
 
     return (
         <div>
@@ -314,7 +331,7 @@ export function PageRedactor({ image }: PageRedactorProps) {
                 <TextEditor
                     node={editingText.node}
                     onSave={handleSaveText}
-                    onCancel={() => setEditingText(null)}
+                    onCancel={handleCancelText}
                 />
             )}
 
