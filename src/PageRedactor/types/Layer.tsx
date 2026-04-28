@@ -9,11 +9,13 @@ export interface ImageLayerData {
 
 export interface ShapeLayerData {
     type: 'shape';
-    shapeType: 'rect' | 'circle' | 'ellipse' | 'line';
+    shapeType: string;
     fill?: string;
     stroke?: string;
     strokeWidth?: number;
     radius?: number; // для circle/ellipse
+    radiusX?: number;   // ← добавь
+    radiusY?: number; 
     points?: number[]; // для line
     width?: number;   // Добавь
     height?: number;
@@ -70,5 +72,21 @@ export interface Layer {
     rotation?: number;
     data: LayerData;
     runtime?: LayerRuntime;  
+}
+
+export interface ShapeConfig {
+    fill?: string;
+    stroke?: string;
+    strokeWidth?: number;
+    width?: number;
+    height?: number;
+}
+
+export interface TextConfig {
+    fontSize?: number;
+    fontFamily?: string;
+    fill?: string;
+    width?: number;
+    height?: number;
 }
 

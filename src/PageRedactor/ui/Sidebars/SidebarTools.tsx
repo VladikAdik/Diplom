@@ -3,6 +3,9 @@ import { PenPanel } from '../Panels/PenPanel';
 import { FilterPanel } from '../Panels/FilterPanel';
 import type { FilterType } from '../Panels/FilterPanel';
 import { usePopover } from '../../hooks/usePopover';
+import { ShapePanel } from '../Panels/ShapePanel';
+import { TextPanel } from '../Panels/TextPanel';
+import type { ShapeConfig, TextConfig  } from '../../types/Layer';
 
 interface SidebarToolsProps {
     selectedTool?: string;
@@ -20,6 +23,8 @@ interface SidebarToolsProps {
     cropShape?: 'rect' | 'free';
     onApplyCrop?: () => void;
     onCancelCrop?: () => void;
+    onAddText?: (text: string, config: TextConfig) => void;
+    onAddShape?: (shapeType: string, config: ShapeConfig) => void;
 }
 
 export function SidebarTools({
@@ -35,11 +40,17 @@ export function SidebarTools({
     onStartCrop,
     isCropping = false,
     onApplyCrop,
-    onCancelCrop
+    onCancelCrop,
+    onAddText,
+    onAddShape,
 }: SidebarToolsProps) {
     const { isOpen, open, close, popoverRef } = usePopover();
 
-    const showSettingsPanel = selectedTool === 'pen' || selectedTool === 'eraser' || selectedTool === 'filter';
+    const showSettingsPanel = selectedTool === 'pen'
+        || selectedTool === 'eraser'
+        || selectedTool === 'filter'
+        || selectedTool === 'shape'
+        || selectedTool === 'text';
 
     useEffect(() => {
         if (showSettingsPanel) {
@@ -50,12 +61,25 @@ export function SidebarTools({
     }, [selectedTool, open, close, showSettingsPanel]);
 
     const handleToolClick = (tool: string) => {
+        // ✅ Для shape всегда открываем панель
+        if (tool === 'shape') {
+            onToolChange?.(tool);
+            open('drawing');
+            return;
+        }
+
         if (showSettingsPanel && tool === selectedTool) {
             if (isOpen('drawing')) {
                 close();
             } else {
                 open('drawing');
             }
+        }
+
+        if (tool === 'text') {
+            onToolChange?.(tool);
+            open('drawing');
+            return;
         }
         onToolChange?.(tool);
     };
@@ -119,6 +143,31 @@ export function SidebarTools({
                     />
                 </div>
             )}
+
+            {selectedTool === 'shape' && isOpen('drawing') && (
+                <div ref={popoverRef}>
+                    <ShapePanel
+                        onAdd={(shapeType, config) => {
+                            onAddShape?.(shapeType, config);
+                            close();
+                        }}
+                        onClose={close}
+                    />
+                </div>
+            )}
+
+            {selectedTool === 'text' && isOpen('drawing') && (
+                <div ref={popoverRef}>
+                    <TextPanel
+                        onAdd={(text, config) => {
+                            onAddText?.(text, config);
+                            close();
+                        }}
+                        onClose={close}
+                    />
+                </div>
+            )}
+
             {/* Кнопки инструментов */}
             <div style={{
                 background: 'white',
@@ -163,6 +212,18 @@ export function SidebarTools({
                         background: selectedTool === 'cropFree' ? '#2196F3' : '#ddd',
                         cursor: 'pointer', padding: '6px 10px', border: 'none', borderRadius: '6px',
                     }} title="Вырезать произвольно (O)">✂️✏️</button>
+
+                <button onClick={() => handleToolClick('shape')}
+                    style={{
+                        background: selectedTool === 'shape' ? '#2196F3' : '#ddd',
+                        cursor: 'pointer', padding: '6px 10px', border: 'none', borderRadius: '6px',
+                    }} title="Добавить фигуру">⬛</button>
+
+                <button onClick={() => handleToolClick('text')}
+                    style={{
+                        background: selectedTool === 'text' ? '#2196F3' : '#ddd',
+                        cursor: 'pointer', padding: '6px 10px', border: 'none', borderRadius: '6px',
+                    }} title="Добавить текст (T)">📝</button>
 
                 {isCropping && (
                     <div style={{ display: 'flex', gap: '4px', marginLeft: '4px' }}>

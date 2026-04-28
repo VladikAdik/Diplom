@@ -39,6 +39,7 @@ interface WorkspaceProps {
     rectArea: { x: number; y: number; width: number; height: number };
     freePoints: { x: number; y: number }[];
     targetLayer?: Layer | null;
+    onEditText?: (id: string, node: Konva.Text) => void;
 }
 
 type TransformData = {
@@ -85,6 +86,7 @@ export function Workspace({
     cropHandlers,
     rectArea,
     freePoints,
+    onEditText,
 }: WorkspaceProps) {
 
     // Управление сценой
@@ -173,6 +175,7 @@ export function Workspace({
                             onSelect={onSelectLayer}
                             selectedTool={selectedTool}
                             layerRefs={layerRefs}
+                            onEditText={onEditText}
                         />
                     ))}
 
@@ -180,6 +183,7 @@ export function Workspace({
                     <TransformControls
                         selectedNodeIds={showTransformer ? selectedLayerIds : new Set()}
                         layerRefs={layerRefs}
+                        layers={layers} 
                         onTransformEnd={handleTransformEnd}
                     />
                     <SnapGuides

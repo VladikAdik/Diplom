@@ -1,9 +1,10 @@
 import { useState, useCallback, useRef, useEffect } from 'react';
-import type { Layer } from '../types/Layer';
+import type { Layer, ShapeConfig, ShapeLayerData, TextConfig } from '../types/Layer';
 import { useHistory } from './useHistory';
 import { useSnapMove, type SnapGuide } from './useSnapMove';
 import { imageToDataURL } from '../utils/imageUtils';
 import { useFilters } from './useFilters';
+import { SHAPE_REGISTRY } from '../constants/shapeRegistry';
 import {
     DEFAULT_LAYER_X, DEFAULT_LAYER_Y, DEFAULT_LAYER_OPACITY,
     DEFAULT_SHAPE_WIDTH, DEFAULT_SHAPE_HEIGHT,
@@ -35,7 +36,7 @@ function createImageLayerData(image: HTMLImageElement, centerX: number, centerY:
         rotation: 0,
         data: {
             type: 'image',
-            src: imageToDataURL(image), // Сразу сериализуем
+            src: imageToDataURL(image),
             width: image.width,
             height: image.height
         },
@@ -44,61 +45,55 @@ function createImageLayerData(image: HTMLImageElement, centerX: number, centerY:
 }
 
 function createShapeLayerData(
-    shapeType: 'rect' | 'circle' | 'ellipse' | 'line',
+    shapeType: string,
     x: number,
-    y: number
+    y: number,
+    config?: ShapeConfig
 ): Omit<Layer, 'id' | 'zIndex'> {
+    const def = SHAPE_REGISTRY[shapeType];
+    if (!def) throw new Error(`Unknown shape type: ${shapeType}`);
+
+    const w = config?.width ?? DEFAULT_SHAPE_WIDTH;
+    const h = config?.height ?? DEFAULT_SHAPE_HEIGHT;
+    const { extraData, extraRuntime } = def.getExtraData(w, h);
+
     const baseData = {
         type: 'shape' as const,
         shapeType,
-        fill: DEFAULT_SHAPE_FILL,
-        stroke: DEFAULT_STROKE_COLOR,
-        strokeWidth: DEFAULT_STROKE_WIDTH,
-        width: DEFAULT_SHAPE_WIDTH,
-        height: DEFAULT_SHAPE_HEIGHT,
+        fill: config?.fill ?? DEFAULT_SHAPE_FILL,
+        stroke: config?.stroke ?? DEFAULT_STROKE_COLOR,
+        strokeWidth: config?.strokeWidth ?? DEFAULT_STROKE_WIDTH,
+        width: w,
+        height: h,
     };
 
-    // Специфичные поля для разных фигур
-    let extraData = {};
-    let extraRuntime = {};
-
-    switch (shapeType) {
-        case 'circle':
-            extraData = { radius: 50 };
-            extraRuntime = { radius: 50 };
-            break;
-        case 'ellipse':
-            extraRuntime = { radiusX: 50, radiusY: 30 };
-            break;
-        case 'line':
-            extraData = { points: [0, 0, 100, 100] };
-            extraRuntime = { points: [0, 0, 100, 100] };
-            break;
-    }
-
     return {
-        name: shapeType === 'rect' ? 'Прямоугольник' :
-            shapeType === 'circle' ? 'Круг' :
-                shapeType === 'ellipse' ? 'Эллипс' : 'Линия',
+        name: def.label,
         visible: true,
         locked: false,
         opacity: DEFAULT_LAYER_OPACITY,
         type: 'shape',
         x, y,
-        width: DEFAULT_SHAPE_WIDTH,
-        height: DEFAULT_SHAPE_HEIGHT,
+        width: w,
+        height: h,
         rotation: 0,
         data: { ...baseData, ...extraData },
-        runtime: {
-            shapeConfig: {
-                ...baseData,
-                ...extraRuntime,
-            }
-        }
+        runtime: { shapeConfig: { ...baseData, ...extraRuntime } }
     };
 }
 
-function createTextLayerData(text: string, x: number, y: number): Omit<Layer, 'id' | 'zIndex'> {
+function createTextLayerData(
+    text: string,
+    x: number,
+    y: number,
+    config?: { fontSize?: number; fontFamily?: string; fill?: string; width?: number; height?: number }
+): Omit<Layer, 'id' | 'zIndex'> {
+    const w = config?.width ?? DEFAULT_TEXT_WIDTH;
+    const h = config?.height ?? DEFAULT_TEXT_HEIGHT;
+    const fs = config?.fontSize ?? DEFAULT_FONT_SIZE;
+    const ff = config?.fontFamily ?? DEFAULT_FONT_FAMILY;
+    const f = config?.fill ?? DEFAULT_TEXT_FILL;
+
     return {
         name: 'Текст',
         visible: true,
@@ -106,29 +101,20 @@ function createTextLayerData(text: string, x: number, y: number): Omit<Layer, 'i
         opacity: DEFAULT_LAYER_OPACITY,
         type: 'text',
         x, y,
-        width: DEFAULT_TEXT_WIDTH,
-        height: DEFAULT_TEXT_HEIGHT,
+        width: w,
+        height: h,
         rotation: 0,
         data: {
             type: 'text',
             text,
-            fontSize: DEFAULT_FONT_SIZE,
-            fontFamily: DEFAULT_FONT_FAMILY,
-            fill: DEFAULT_TEXT_FILL,
+            fontSize: fs,
+            fontFamily: ff,
+            fill: f,
             align: DEFAULT_TEXT_ALIGN,
-            width: DEFAULT_TEXT_WIDTH,
-            height: DEFAULT_TEXT_HEIGHT
+            width: w,
+            height: h
         },
-        runtime: {
-            textConfig: {
-                text,
-                fontSize: DEFAULT_FONT_SIZE,
-                fontFamily: DEFAULT_FONT_FAMILY,
-                fill: DEFAULT_TEXT_FILL,
-                align: DEFAULT_TEXT_ALIGN,
-                width: DEFAULT_TEXT_WIDTH,
-            }
-        }
+        runtime: { textConfig: { text, fontSize: fs, fontFamily: ff, fill: f, align: DEFAULT_TEXT_ALIGN, width: w } }
     };
 }
 
@@ -144,7 +130,7 @@ function duplicateLayerData(original: Layer): Omit<Layer, 'id' | 'zIndex'> {
         width: original.width,
         height: original.height,
         rotation: original.rotation,
-        data: { ...original.data }, // Поверхностное копирование
+        data: { ...original.data },
         runtime: original.runtime ? { ...original.runtime } : undefined
     };
 }
@@ -154,7 +140,6 @@ function duplicateLayerData(original: Layer): Omit<Layer, 'id' | 'zIndex'> {
 // ============================================================
 
 function serializeLayer(layer: Layer): Layer {
-    // Синхронизируем data с актуальными значениями
     const syncedData = { ...layer.data };
 
     if (layer.type === 'shape' && layer.runtime?.shapeConfig) {
@@ -165,6 +150,9 @@ function serializeLayer(layer: Layer): Layer {
             fill: shapeConfig.fill as string,
             stroke: shapeConfig.stroke as string,
             strokeWidth: shapeConfig.strokeWidth as number,
+            radius: shapeConfig.radius,
+            radiusX: shapeConfig.radiusX,
+            radiusY: shapeConfig.radiusY,
         });
     }
 
@@ -196,14 +184,13 @@ function serializeLayer(layer: Layer): Layer {
     return {
         ...layer,
         data: syncedData,
-        runtime: undefined // Убираем runtime для хранения в истории
+        runtime: undefined
     };
 }
 
 async function deserializeLayer(layer: Layer): Promise<Layer> {
     const data = layer.data;
 
-    // ✅ Исправлено: используем data.type вместо проверки полей
     switch (data.type) {
         case 'image': {
             if (!('src' in data) || !data.src) return { ...layer, runtime: {} };
@@ -222,21 +209,20 @@ async function deserializeLayer(layer: Layer): Promise<Layer> {
         }
 
         case 'shape': {
+            const shapeData = data as ShapeLayerData;
             const shapeConfig: Konva.ShapeConfig = {
-                fill: ('fill' in data && data.fill) || DEFAULT_SHAPE_FILL,
-                stroke: ('stroke' in data && data.stroke) || DEFAULT_STROKE_COLOR,
-                strokeWidth: ('strokeWidth' in data && data.strokeWidth) || DEFAULT_STROKE_WIDTH,
-                width: data.width,
-                height: data.height,
+                fill: shapeData.fill || DEFAULT_SHAPE_FILL,
+                stroke: shapeData.stroke || DEFAULT_STROKE_COLOR,
+                strokeWidth: shapeData.strokeWidth || DEFAULT_STROKE_WIDTH,
+                width: shapeData.width,
+                height: shapeData.height,
             };
 
-            if (data.shapeType === 'circle') {
-                shapeConfig.radius = ('radius' in data && data.radius) || 50;
-            } else if (data.shapeType === 'ellipse') {
-                shapeConfig.radiusX = 50;
-                shapeConfig.radiusY = 30;
-            } else if (data.shapeType === 'line') {
-                shapeConfig.points = ('points' in data && data.points) || [0, 0, 100, 100];
+            if (shapeData.shapeType === 'circle') {
+                shapeConfig.radius = shapeData.radius || 50;
+            } else if (shapeData.shapeType === 'ellipse') {
+                shapeConfig.radiusX = shapeData.radiusX || 50;
+                shapeConfig.radiusY = shapeData.radiusY || 30;
             }
 
             return { ...layer, runtime: { shapeConfig } };
@@ -280,7 +266,6 @@ export function useLayers(stageSize: { width: number; height: number }) {
 
     const [snapGuides, setSnapGuides] = useState<SnapGuide[]>([]);
 
-    // Ref для актуального выделения (чтобы saveState всегда видел свежее значение)
     const selectedIdsRef = useRef(selectedIds);
     useEffect(() => {
         selectedIdsRef.current = selectedIds;
@@ -294,7 +279,6 @@ export function useLayers(stageSize: { width: number; height: number }) {
         (mutation: (prevLayers: Layer[]) => Layer[]) => {
             setLayers(prev => {
                 const next = mutation(prev);
-                // Автосохранение в историю (сериализуем runtime → data)
                 const serialized = next.map(serializeLayer);
                 saveState(serialized, selectedIdsRef.current);
                 return next;
@@ -331,15 +315,15 @@ export function useLayers(stageSize: { width: number; height: number }) {
     );
 
     const addShapeLayer = useCallback(
-        (shapeType: 'rect' | 'circle' | 'ellipse' | 'line', x = DEFAULT_LAYER_X, y = DEFAULT_LAYER_Y) => {
-            addLayer(createShapeLayerData(shapeType, x, y));
+        (shapeType: string, x = DEFAULT_LAYER_X, y = DEFAULT_LAYER_Y, config?: ShapeConfig) => {
+            addLayer(createShapeLayerData(shapeType, x, y, config));
         },
         [addLayer]
     );
 
     const addTextLayer = useCallback(
-        (text = 'Новый текст', x = DEFAULT_LAYER_X, y = DEFAULT_LAYER_Y) => {
-            addLayer(createTextLayerData(text, x, y));
+        (text = 'Новый текст', x = DEFAULT_LAYER_X, y = DEFAULT_LAYER_Y, config?: TextConfig) => {
+            addLayer(createTextLayerData(text, x, y, config));
         },
         [addLayer]
     );
@@ -380,6 +364,10 @@ export function useLayers(stageSize: { width: number; height: number }) {
         [mutate]
     );
 
+    // ============================================================
+    // Обновление позиции/размера с учётом типа фигуры
+    // ============================================================
+
     const updateLayerPosition = useCallback(
         (id: string, x: number, y: number, width?: number, height?: number, rotation?: number) => {
             mutate(prev =>
@@ -394,7 +382,7 @@ export function useLayers(stageSize: { width: number; height: number }) {
                         ...(rotation !== undefined && { rotation })
                     };
 
-                    // Синхронизируем data и runtime
+                    // Синхронизируем data
                     if (updated.data) {
                         updated.data = {
                             ...updated.data,
@@ -403,12 +391,19 @@ export function useLayers(stageSize: { width: number; height: number }) {
                         };
                     }
 
-                    if (updated.runtime?.shapeConfig) {
-                        updated.runtime.shapeConfig = {
-                            ...updated.runtime.shapeConfig,
-                            ...(width !== undefined && { width }),
-                            ...(height !== undefined && { height })
-                        };
+                    // Обновляем shapeConfig через реестр
+                    if (updated.runtime?.shapeConfig && layer.type === 'shape' && layer.data.type === 'shape') {
+                        const def = SHAPE_REGISTRY[layer.data.shapeType];
+                        if (def) {
+                            const w = width ?? layer.width ?? 100;
+                            const h = height ?? layer.height ?? 100;
+                            updated.runtime.shapeConfig = def.updateConfig(updated.runtime.shapeConfig, w, h);
+
+                            // Синхронизируем специфичные данные в data
+                            if (layer.data.shapeType === 'circle') {
+                                (updated.data as ShapeLayerData).radius = Math.min(w, h) / 2;
+                            }
+                        }
                     }
 
                     return updated;
@@ -437,12 +432,17 @@ export function useLayers(stageSize: { width: number; height: number }) {
                             };
                         }
 
-                        if (updated.runtime?.shapeConfig) {
-                            updated.runtime.shapeConfig = {
-                                ...updated.runtime.shapeConfig,
-                                ...(update.width !== undefined && { width: update.width }),
-                                ...(update.height !== undefined && { height: update.height })
-                            };
+                        if (updated.runtime?.shapeConfig && layer.type === 'shape' && layer.data.type === 'shape') {
+                            const def = SHAPE_REGISTRY[layer.data.shapeType];
+                            if (def) {
+                                const w = update.width ?? layer.width ?? 100;
+                                const h = update.height ?? layer.height ?? 100;
+                                updated.runtime.shapeConfig = def.updateConfig(updated.runtime.shapeConfig, w, h);
+
+                                if (layer.data.shapeType === 'circle') {
+                                    (updated.data as ShapeLayerData).radius = Math.min(w, h) / 2;
+                                }
+                            }
                         }
 
                         return updated;
@@ -475,9 +475,7 @@ export function useLayers(stageSize: { width: number; height: number }) {
 
     const getFirstImageBounds = useCallback(() => {
         const firstImage = layers.find(l => l.type === 'image');
-        console.log('First image:', firstImage);
         if (!firstImage) return null;
-
         return {
             width: firstImage.width ?? 100,
             height: firstImage.height ?? 100
@@ -617,12 +615,10 @@ export function useLayers(stageSize: { width: number; height: number }) {
     // ============================================================
 
     return {
-        // Состояние
         layers,
         selectedLayerIds: selectedIds,
         layerRefs,
 
-        // CRUD с историей
         addLayer,
         addImageLayer,
         addShapeLayer,
@@ -641,17 +637,14 @@ export function useLayers(stageSize: { width: number; height: number }) {
         handleDragMove,
         handleDragEnd,
 
-        // Свойства (без истории)
         toggleVisibility,
         toggleLock,
         setOpacity,
 
-        // Выделение
         selectLayer,
         clearSelection,
         selectAll,
 
-        // История
         undo,
         redo,
         canUndo,

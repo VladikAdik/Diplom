@@ -9,6 +9,9 @@ import { useStageSize } from '../hooks/useStageSize';
 import { useDrawingTool } from '../hooks/usePenTool';
 import { useCropTool } from '../hooks/useCropTool';
 import type Konva from 'konva';
+import type { Layer } from '../types/Layer';
+import { TextEditor } from './Workspace/TextEditor';
+import type { ShapeConfig, TextConfig } from '../types/Layer';
 
 interface PageRedactorProps {
     image: HTMLImageElement | null;
@@ -28,6 +31,8 @@ export function PageRedactor({ image }: PageRedactorProps) {
         selectedLayerIds,
         layerRefs,
         addImageLayer,
+        addShapeLayer,
+        addTextLayer,
         removeLayer,
         updateLayer,
         updateLayerPosition,
@@ -223,6 +228,44 @@ export function PageRedactor({ image }: PageRedactorProps) {
         startCrop(shape);
     }, [startCrop]);
 
+    const handleAddText = useCallback((text: string, config: TextConfig) => {
+        const center = getStageCenter();
+        addTextLayer(text, center.x - (config.width || 200) / 2, center.y - (config.height || 50) / 2, config);
+    }, [addTextLayer, getStageCenter]);
+
+    const handleAddShape = useCallback((shapeType: string, config: ShapeConfig) => {
+        const center = getStageCenter();
+        addShapeLayer(shapeType, center.x - (config.width || 100) / 2, center.y - (config.height || 100) / 2, config);
+    }, [addShapeLayer, getStageCenter]);
+
+    const [editingText, setEditingText] = useState<{ id: string; node: Konva.Text } | null>(null);
+
+    // Добавьте обработчики:
+    const handleEditText = useCallback((id: string, node: Konva.Text) => {
+        setEditingText({ id, node });
+    }, []);
+
+    const handleSaveText = useCallback((text: string) => {
+        if (editingText) {
+            const layer = layers.find(l => l.id === editingText.id);
+            if (layer && layer.runtime?.textConfig) {
+                updateLayer(editingText.id, {
+                    data: {
+                        ...layer.data,
+                        text,
+                    } as Layer['data'],
+                    runtime: {
+                        textConfig: {
+                            ...layer.runtime.textConfig,
+                            text,
+                        }
+                    }
+                });
+            }
+            setEditingText(null);
+        }
+    }, [editingText, updateLayer, layers]);
+
     return (
         <div>
             <Header
@@ -265,7 +308,15 @@ export function PageRedactor({ image }: PageRedactorProps) {
                 }}
                 rectArea={rectArea}      // добавить в WorkspaceProps
                 freePoints={freePoints}  // добавить в WorkspaceProps
+                onEditText={handleEditText}
             />
+            {editingText && (
+                <TextEditor
+                    node={editingText.node}
+                    onSave={handleSaveText}
+                    onCancel={() => setEditingText(null)}
+                />
+            )}
 
             <SidebarTools
                 selectedTool={selectedTool}
@@ -287,6 +338,8 @@ export function PageRedactor({ image }: PageRedactorProps) {
                 cropShape={cropShape}
                 onApplyCrop={applyCrop}
                 onCancelCrop={cancelCrop}
+                onAddText={handleAddText}
+                onAddShape={handleAddShape}
             />
 
             <SidebarLayers

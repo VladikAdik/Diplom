@@ -1,7 +1,8 @@
-import { memo, useEffect, useState } from 'react';
-import { Image as KonvaImage, Shape as KonvaShape, Text as KonvaText, Group } from 'react-konva'
+import { memo, useEffect, useState, } from 'react';
+import { Image as KonvaImage, Text as KonvaText, Group } from 'react-konva'
 import type Konva from 'konva';
-import type { Layer } from '../../types/Layer';
+import type { Layer, ShapeLayerData } from '../../types/Layer';
+import { SHAPE_REGISTRY } from '../../constants/shapeRegistry';
 import { DEFAULT_LAYER_X, DEFAULT_LAYER_Y, SELECTION_STROKE } from '../../constants/editor';
 
 interface LayerRendererProps {
@@ -13,6 +14,7 @@ interface LayerRendererProps {
     onSelect: (id: string, multiSelect: boolean) => void;
     selectedTool: string;
     layerRefs: React.RefObject<Map<string, Konva.Group>>; // ← меняем тип на Group
+    onEditText?: (layerId: string, node: Konva.Text) => void;
 }
 
 function useImage(url: string): HTMLImageElement | null {
@@ -24,7 +26,7 @@ function useImage(url: string): HTMLImageElement | null {
             if (!cancelled) setImage(img);
         };
         img.src = url;
-        return () => { 
+        return () => {
             cancelled = true;
             img.onload = null;
         };
@@ -47,7 +49,8 @@ export const LayerRenderer = memo(({
     onDragEnd,
     onSelect,
     selectedTool,
-    layerRefs
+    layerRefs,
+    onEditText,
 }: LayerRendererProps) => {
     useEffect(() => {
         const refs = layerRefs.current;
@@ -88,16 +91,13 @@ export const LayerRenderer = memo(({
                         name={layer.id}
                     />
                 );
-            case 'shape':
+            case 'shape': {
                 if (!layer.runtime?.shapeConfig) return null;
-                return (
-                    <KonvaShape
-                        {...layer.runtime.shapeConfig}
-                        width={layer.width}
-                        height={layer.height}
-                        name={layer.id}
-                    />
-                );
+                const cfg = layer.runtime.shapeConfig;
+                const def = SHAPE_REGISTRY[(layer.data as ShapeLayerData).shapeType];
+                if (!def) return null;
+                return def.createElement(cfg, layer.width || 100, layer.height || 100, layer.id);
+            }
             case 'text':
                 if (!layer.runtime?.textConfig) return null;
                 return (
@@ -106,6 +106,10 @@ export const LayerRenderer = memo(({
                         width={layer.width}
                         height={layer.height}
                         name={layer.id}
+                        onDblClick={(e) => {
+                            e.cancelBubble = true;
+                            onEditText?.(layer.id, e.target as Konva.Text);
+                        }}
                     />
                 );
             case 'canvas':
