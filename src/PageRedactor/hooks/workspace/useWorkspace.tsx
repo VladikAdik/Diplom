@@ -103,10 +103,21 @@ export function useWorkspaceLogic({ onUpdate, stageRef }: WorkspaceLogicProps) {
 
     // === Панорамирование (колёсико или пробел+левая) ===
     const handleMouseDown = useCallback((e: Konva.KonvaEventObject<MouseEvent>) => {
-        if (e.evt.button === 1 || (spacePressed.current && e.evt.button === 0)) {
+        if (e.evt.button === 1) {
             isPanning.current = true;
             lastPanPos.current = { x: e.evt.clientX, y: e.evt.clientY };
             e.evt.preventDefault();
+            e.cancelBubble = true; // ✅ блокируем всплытие, чтобы инструменты не сработали
+            return;
+        }
+
+        // Пробел + левая кнопка
+        if (spacePressed.current && e.evt.button === 0) {
+            isPanning.current = true;
+            lastPanPos.current = { x: e.evt.clientX, y: e.evt.clientY };
+            e.evt.preventDefault();
+            e.cancelBubble = true;
+            return;
         }
     }, []);
 
@@ -119,24 +130,10 @@ export function useWorkspaceLogic({ onUpdate, stageRef }: WorkspaceLogicProps) {
         const dx = e.evt.clientX - lastPanPos.current.x;
         const dy = e.evt.clientY - lastPanPos.current.y;
 
-        let newX = stage.x() + dx;
-        let newY = stage.y() + dy;
+        const newX = stage.x() + dx;
+        const newY = stage.y() + dy;
 
-        // === Мягкое ограничение ===
-        const viewW = stage.width();
-        const viewH = stage.height();
-        const margin = 200; // отступ, куда можно уйти
-
-        // Вычисляем границы (если нет контента — не ограничиваем)
-        // newX: центр сцены (0,0) не должен уходить далеко
-        const maxX = viewW + margin;
-        const minX = -margin;
-        const maxY = viewH + margin;
-        const minY = -margin;
-
-        newX = Math.min(maxX, Math.max(minX, newX));
-        newY = Math.min(maxY, Math.max(minY, newY));
-
+        // Убираем мягкое ограничение — бесконечный холст
         stage.position({ x: newX, y: newY });
         stage.batchDraw();
 

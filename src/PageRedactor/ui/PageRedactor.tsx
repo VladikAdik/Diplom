@@ -337,7 +337,7 @@ export function PageRedactor({ image }: PageRedactorProps) {
                     onToggleVisibility={toggleVisibility}
                     onToggleLock={toggleLock}
                     onRemoveLayer={removeLayer}
-                    onAddLayer={() => addCanvasLayer(800, 600)}
+                    onAddLayer={addCanvasLayer}
                 />
             </div>
         </div>

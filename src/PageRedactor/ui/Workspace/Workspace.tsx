@@ -88,7 +88,13 @@ export function Workspace({
 
     // Единый обработчик событий stage
     const handleStageMouseDown = useCallback((e: Konva.KonvaEventObject<MouseEvent>) => {
+        // Сначала панорамирование (проверяет кнопку внутри)
         panMouseDown?.(e);
+
+        // Если панорамирование активно — не вызываем инструменты
+        // (isPanning проверяется внутри panMouseDown, но можно добавить проверку здесь)
+        if (e.evt.button === 1) return;
+        if (e.evt.defaultPrevented) return;
 
         if (selectedTool === 'pen' || selectedTool === 'eraser') {
             penHandlers?.onMouseDown();

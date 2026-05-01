@@ -85,17 +85,14 @@ export function useSelectionRect({
     };
 
         // Завершение рисования рамки
-        const handleMouseUp = (e: Konva.KonvaEventObject<MouseEvent>) => {
+        const handleMouseUp = () => {
             if (!isDrawingRef.current || selectedTool !== 'select') return;
 
             const currentRect = selectionRectRef.current;
             const isClickOnly = currentRect.width <= 5 && currentRect.height <= 5;
 
             if (isClickOnly) {
-                // Простой клик по пустоте — сбрасываем выделение (если без Ctrl)
-                if (!e.evt.ctrlKey && !e.evt.metaKey) {
-                    clearSelection();
-                }
+                // Клик по пустоте — ничего не делаем, выделение остаётся
             } else {
                 // Рамка достаточно большая — выделяем все пересекающиеся слои
                 const toSelect: string[] = [];

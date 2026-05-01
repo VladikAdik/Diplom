@@ -160,8 +160,8 @@ export const LayerRenderer = memo(({
             onMouseDown={handleMouseDown}
             onDragMove={handleDragMove}
             onDragEnd={handleDragEnd}
-            stroke={isSelected ? SELECTION_STROKE : undefined}
-            strokeWidth={isSelected ? 2 : 0}
+            stroke={isSelected && selectedTool === 'select' ? SELECTION_STROKE : undefined}
+            strokeWidth={isSelected && selectedTool === 'select' ? 2 : 0}
             name={layer.id}
         >
             {renderContent()}
