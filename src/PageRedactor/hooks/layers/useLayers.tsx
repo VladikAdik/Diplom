@@ -52,10 +52,11 @@ export function useLayers(stageSize: { width: number; height: number }) {
           id: generateId(),
           zIndex: prev.length
         };
+        selectLayer(newLayer.id);
         return [...prev, newLayer];
       });
     },
-    [mutate]
+    [mutate, selectLayer]
   );
 
   const addImageLayer = useCallback(

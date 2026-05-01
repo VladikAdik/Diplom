@@ -5,9 +5,10 @@ import type { Layer } from '../../types/Layer';
 interface UseCropToolProps {
     stageRef: React.RefObject<Konva.Stage | null>;
     layers: Layer[];
-    targetLayerId: string | null;  // ← изменить: передавать конкретный слой
+    targetLayerId: string | null;
     selectedTool: string;
     updateLayer: (id: string, updates: Partial<Layer>) => void;
+    selectLayer?: (id: string) => void;  // ← добавь
     onCropComplete?: () => void;
 }
 
@@ -16,6 +17,7 @@ export function useCropTool({
     layers,
     targetLayerId,
     selectedTool,
+    selectLayer,
     updateLayer,
     onCropComplete
 }: UseCropToolProps) {
@@ -148,100 +150,103 @@ export function useCropTool({
     }, [cropShape]);
 
     const applyCrop = useCallback(() => {
-    const layer = getTargetLayer();
-    if (!layer) return;
+        const layer = getTargetLayer();
+        if (!layer) return;
 
-    // Для прямоугольника — проверяем что область выбрана
-    if (cropShape === 'rect' && (rectArea.width < 5 || rectArea.height < 5)) {
-        cancelCrop();
-        return;
-    }
-
-    // Для произвольной формы — нужно минимум 3 точки
-    if (cropShape === 'free' && freePoints.length < 3) {
-        cancelCrop();
-        return;
-    }
-
-    // Получаем исходное изображение
-    let sourceImg: HTMLImageElement | null = null;
-    if (layer.runtime?.imageElement) {
-        sourceImg = layer.runtime.imageElement;
-    } else if (layer.type === 'canvas' && layer.data.type === 'canvas') {
-        sourceImg = new Image();
-        sourceImg.src = layer.data.src;
-    }
-
-    if (!sourceImg) return;
-
-    const canvas = document.createElement('canvas');
-    let cropX = 0, cropY = 0, cropW = 0, cropH = 0;
-
-    if (cropShape === 'rect' && rectArea.width > 0 && rectArea.height > 0) {
-        cropX = Math.max(0, rectArea.x);
-        cropY = Math.max(0, rectArea.y);
-        cropW = Math.min(rectArea.width, (layer.width || sourceImg.width) - cropX);
-        cropH = Math.min(rectArea.height, (layer.height || sourceImg.height) - cropY);
-        canvas.width = cropW;
-        canvas.height = cropH;
-    } else if (cropShape === 'free' && freePoints.length >= 3) {
-        const xs = freePoints.map(p => p.x);
-        const ys = freePoints.map(p => p.y);
-        const minX = Math.max(0, Math.min(...xs));
-        const minY = Math.max(0, Math.min(...ys));
-        const maxX = Math.min(layer.width || sourceImg.width, Math.max(...xs));
-        const maxY = Math.min(layer.height || sourceImg.height, Math.max(...ys));
-        cropW = maxX - minX;
-        cropH = maxY - minY;
-        canvas.width = cropW;
-        canvas.height = cropH;
-        cropX = minX;
-        cropY = minY;
-    } else {
-        return;
-    }
-
-    const ctx = canvas.getContext('2d')!;
-
-    if (cropShape === 'free' && freePoints.length >= 3) {
-        ctx.beginPath();
-        const adjustedPoints = freePoints.map(p => ({ x: p.x - cropX, y: p.y - cropY }));
-        ctx.moveTo(adjustedPoints[0].x, adjustedPoints[0].y);
-        for (let i = 1; i < adjustedPoints.length; i++) {
-            ctx.lineTo(adjustedPoints[i].x, adjustedPoints[i].y);
+        // Для прямоугольника — проверяем что область выбрана
+        if (cropShape === 'rect' && (rectArea.width < 5 || rectArea.height < 5)) {
+            cancelCrop();
+            return;
         }
-        ctx.closePath();
-        ctx.clip();
-    }
 
-    ctx.drawImage(sourceImg, cropX, cropY, cropW, cropH, 0, 0, cropW, cropH);
+        // Для произвольной формы — нужно минимум 3 точки
+        if (cropShape === 'free' && freePoints.length < 3) {
+            cancelCrop();
+            return;
+        }
 
-    const dataURL = canvas.toDataURL();
-    const newImg = new Image();
-    newImg.src = dataURL;
+        // Получаем исходное изображение
+        let sourceImg: HTMLImageElement | null = null;
+        if (layer.runtime?.imageElement) {
+            sourceImg = layer.runtime.imageElement;
+        } else if (layer.type === 'canvas' && layer.data.type === 'canvas') {
+            sourceImg = new Image();
+            sourceImg.src = layer.data.src;
+        }
 
-    // === ГЛАВНОЕ: сохраняем позицию вырезанной области ===
-    const newX = (layer.x ?? 0) + cropX;
-    const newY = (layer.y ?? 0) + cropY;
+        if (!sourceImg) return;
 
-    updateLayer(layer.id, {
-        type: 'canvas',
-        x: newX,   // ← новая позиция
-        y: newY,   // ← новая позиция
-        width: cropW,
-        height: cropH,
-        data: {
+        const canvas = document.createElement('canvas');
+        let cropX = 0, cropY = 0, cropW = 0, cropH = 0;
+
+        if (cropShape === 'rect' && rectArea.width > 0 && rectArea.height > 0) {
+            cropX = Math.max(0, rectArea.x);
+            cropY = Math.max(0, rectArea.y);
+            cropW = Math.min(rectArea.width, (layer.width || sourceImg.width) - cropX);
+            cropH = Math.min(rectArea.height, (layer.height || sourceImg.height) - cropY);
+            canvas.width = cropW;
+            canvas.height = cropH;
+        } else if (cropShape === 'free' && freePoints.length >= 3) {
+            const xs = freePoints.map(p => p.x);
+            const ys = freePoints.map(p => p.y);
+            const minX = Math.max(0, Math.min(...xs));
+            const minY = Math.max(0, Math.min(...ys));
+            const maxX = Math.min(layer.width || sourceImg.width, Math.max(...xs));
+            const maxY = Math.min(layer.height || sourceImg.height, Math.max(...ys));
+            cropW = maxX - minX;
+            cropH = maxY - minY;
+            canvas.width = cropW;
+            canvas.height = cropH;
+            cropX = minX;
+            cropY = minY;
+        } else {
+            return;
+        }
+
+        const ctx = canvas.getContext('2d')!;
+
+        if (cropShape === 'free' && freePoints.length >= 3) {
+            ctx.beginPath();
+            const adjustedPoints = freePoints.map(p => ({ x: p.x - cropX, y: p.y - cropY }));
+            ctx.moveTo(adjustedPoints[0].x, adjustedPoints[0].y);
+            for (let i = 1; i < adjustedPoints.length; i++) {
+                ctx.lineTo(adjustedPoints[i].x, adjustedPoints[i].y);
+            }
+            ctx.closePath();
+            ctx.clip();
+        }
+
+        ctx.drawImage(sourceImg, cropX, cropY, cropW, cropH, 0, 0, cropW, cropH);
+
+        const dataURL = canvas.toDataURL();
+        const newImg = new Image();
+        newImg.src = dataURL;
+
+        // === ГЛАВНОЕ: сохраняем позицию вырезанной области ===
+        const newX = (layer.x ?? 0) + cropX;
+        const newY = (layer.y ?? 0) + cropY;
+
+        updateLayer(layer.id, {
             type: 'canvas',
-            src: dataURL,
+            x: newX,   // ← новая позиция
+            y: newY,   // ← новая позиция
             width: cropW,
             height: cropH,
-        },
-        runtime: { imageElement: newImg },
-    });
+            data: {
+                type: 'canvas',
+                src: dataURL,
+                width: cropW,
+                height: cropH,
+            },
+            runtime: { imageElement: newImg },
+        });
 
-    cancelCrop();
-    onCropComplete?.();
-}, [getTargetLayer, cropShape, rectArea, freePoints, updateLayer, cancelCrop, onCropComplete]);
+        cancelCrop();
+        setTimeout(() => {
+            selectLayer?.(layer.id);
+            onCropComplete?.();
+        }, 0);
+    }, [getTargetLayer, cropShape, rectArea, freePoints, updateLayer, cancelCrop, onCropComplete, selectLayer]);
 
     return {
         isCropping,

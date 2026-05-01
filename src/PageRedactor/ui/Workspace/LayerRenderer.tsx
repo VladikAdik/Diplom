@@ -62,12 +62,16 @@ export const LayerRenderer = memo(({
     // Общий обработчик клика для всех типов
     const handleMouseDown = (e: Konva.KonvaEventObject<MouseEvent>) => {
         if (selectedTool === 'select') {
+            // Только в режиме выделения реагируем на клик
             e.cancelBubble = true;
             const isMultiSelect = e.evt.ctrlKey || e.evt.metaKey;
             const isAlreadySelected = isSelected;
             if (isAlreadySelected && !isMultiSelect) return;
             onSelect(layer.id, isMultiSelect);
+            return;
         }
+
+        // В остальных режимах — ничего не делаем, событие проходит на Stage
     };
 
     const handleDragMove = (e: Konva.KonvaEventObject<DragEvent>) => {

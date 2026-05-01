@@ -70,6 +70,7 @@ export function PageRedactor({ image }: PageRedactorProps) {
         targetLayerId,
         selectedTool,
         updateLayer,
+        selectLayer,
         onCropComplete: () => setSelectedTool('select')
     });
 
