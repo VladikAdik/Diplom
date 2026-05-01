@@ -1,0 +1,57 @@
+.wrapper {
+  position: fixed;
+  z-index: 10000;
+  background: var(--bg-panel);
+  border-radius: var(--radius);
+  box-shadow: var(--shadow-md);
+  border: 2px solid var(--primary);
+}
+
+.textarea {
+  width: 100%;
+  min-height: 30px;
+  background: transparent;
+  border: none;
+  outline: none;
+  padding: 8px;
+  margin: 0;
+  font-size: inherit;
+  font-family: inherit;
+  color: inherit;
+  line-height: inherit;
+  resize: none;
+  overflow: hidden;
+  white-space: pre-wrap;
+  word-break: break-word;
+  box-sizing: border-box;
+}
+
+.actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 4px;
+  padding: 4px 8px;
+  border-top: 1px solid var(--border-light);
+  background: #fafafa;
+  border-radius: 0 0 var(--radius) var(--radius);
+}
+
+.saveBtn {
+  padding: 4px 12px;
+  font-size: var(--font-md);
+  background: var(--success);
+  color: white;
+  border: none;
+  border-radius: 3px;
+  cursor: pointer;
+}
+
+.cancelBtn {
+  padding: 4px 12px;
+  font-size: var(--font-md);
+  background: var(--danger);
+  color: white;
+  border: none;
+  border-radius: 3px;
+  cursor: pointer;
+}

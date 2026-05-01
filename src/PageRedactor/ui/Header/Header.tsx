@@ -3,6 +3,7 @@ import { HeaderTab } from "./HeaderTab";
 import { HeaderTabItem } from "./HeaderTabItem";
 import { SizePanel } from "../Panels/SizePanel";
 import { usePopover } from "../../hooks/interaction";
+import styles from './Header.module.css'
 
 interface HeaderProps {
     onNewProject?: () => void;
@@ -55,13 +56,7 @@ export function Header({
     }, [onSetCustomSize, close]);
 
     return (
-        <div style={{ 
-            display: 'flex', 
-            background: '#2c3e50', 
-            padding: '4px 8px',
-            gap: '4px',
-            position: 'relative'
-        }}>
+        <div className={styles.header}>
             <HeaderTab title="Файл">
                 <HeaderTabItem onClick={onNewProject}>📄 Новый проект</HeaderTabItem>
                 <HeaderTabItem onClick={onLoadImage}>📁 Загрузить изображение</HeaderTabItem>
@@ -88,16 +83,7 @@ export function Header({
             </HeaderTab>
 
             {isOpen('size') && (
-                <div ref={popoverRef} style={{
-                    position: 'absolute',
-                    top: '40px',
-                    left: '120px',
-                    zIndex: 300,
-                    background: 'white',
-                    borderRadius: '8px',
-                    boxShadow: '0 4px 12px rgba(0,0,0,0.15)',
-                    border: '1px solid #ddd'
-                }}>
+                <div ref={popoverRef} className={styles.sizePopover}>
                     <SizePanel
                         key={panelKey}
                         currentWidth={currentWidth}

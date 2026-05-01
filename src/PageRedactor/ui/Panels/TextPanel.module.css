@@ -1,0 +1,111 @@
+.panel {
+  padding: 16px;
+  min-width: 260px;
+  background: var(--bg-panel);
+  border-radius: var(--radius-lg);
+  box-shadow: var(--shadow-md);
+  outline: none;
+}
+
+.title {
+  margin: 0 0 12px 0;
+  font-size: var(--font-lg);
+}
+
+.label {
+  display: block;
+  font-size: var(--font-md);
+  color: var(--text-light);
+  margin-bottom: 4px;
+}
+
+.textarea {
+  width: 100%;
+  padding: 6px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  font-size: var(--font-md);
+  resize: vertical;
+  box-sizing: border-box;
+}
+
+.select {
+  width: 100%;
+  padding: 4px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  font-size: var(--font-md);
+}
+
+.rangeRow {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+}
+
+.rangeSlider {
+  flex: 1;
+}
+
+.numberInput {
+  width: 50px;
+  padding: 4px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  font-size: var(--font-md);
+  text-align: center;
+}
+
+.colorRow {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+}
+
+.colorPicker {
+  width: 32px;
+  height: 32px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  cursor: pointer;
+  padding: 2px;
+}
+
+.colorText {
+  flex: 1;
+  padding: 4px 6px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  font-size: var(--font-md);
+  font-family: monospace;
+}
+
+.actions {
+  display: flex;
+  gap: 8px;
+  justify-content: flex-end;
+  margin-top: 12px;
+}
+
+.cancelBtn {
+  padding: 6px 16px;
+  font-size: var(--font-md);
+  background: var(--bg-light);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  cursor: pointer;
+}
+
+.addBtn {
+  padding: 6px 16px;
+  font-size: var(--font-md);
+  background: var(--primary);
+  color: white;
+  border: none;
+  border-radius: var(--radius);
+  cursor: pointer;
+}
+
+.mb8 {
+  margin-bottom: 8px;
+}

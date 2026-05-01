@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react';
 import { MIN_PEN_WIDTH, MAX_PEN_WIDTH } from '../../constants/editor';
+import styles from './PenPanel.module.css';
 
 interface PenPanelProps {
     color: string;
@@ -29,36 +30,28 @@ export function PenPanel({
     }, [width]);
 
     return (
-        <div style={{
-            padding: '12px',
-            minWidth: '180px',
-            background: 'white',
-            borderRadius: '8px',
-            boxShadow: '0 4px 12px rgba(0,0,0,0.15)',
-        }}>
+        <div className={styles.panel}>
             {showColor && (
-                <div style={{ marginBottom: '10px' }}>
-                    <label style={{ display: 'block', fontSize: '12px', color: '#666', marginBottom: '4px' }}>Цвет</label>
+                <div className={styles.mb10}>
+                    <label className={styles.label}>Цвет</label>
                     <input
                         type="color"
                         value={localColor}
                         onChange={(e) => { setLocalColor(e.target.value); onColorChange(e.target.value); }}
-                        style={{ width: '100%', height: '30px', border: 'none', cursor: 'pointer' }}
+                        className={styles.colorInput}
                     />
                 </div>
             )}
 
-            <div style={{ marginBottom: '10px' }}>
-                <label style={{ display: 'block', fontSize: '12px', color: '#666', marginBottom: '4px' }}>
-                    Толщина: {localWidth}px
-                </label>
+            <div className={styles.mb10}>
+                <label className={styles.label}>Толщина: {localWidth}px</label>
                 <input
                     type="range"
                     min={MIN_PEN_WIDTH}
                     max={MAX_PEN_WIDTH}
                     value={localWidth}
                     onChange={(e) => { setLocalWidth(e.target.value); onWidthChange(Number(e.target.value)); }}
-                    style={{ width: '100%' }}
+                    className={styles.rangeInput}
                 />
             </div>
         </div>

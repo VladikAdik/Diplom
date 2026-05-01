@@ -1,0 +1,154 @@
+.panel {
+  padding: 16px;
+  min-width: 220px;
+  background: var(--bg-panel);
+  border-radius: var(--radius-lg);
+  box-shadow: var(--shadow-md);
+  outline: none;
+}
+
+.title {
+  margin: 0 0 12px 0;
+  font-size: var(--font-lg);
+}
+
+.sectionLabel {
+  display: block;
+  font-size: var(--font-md);
+  color: var(--text-light);
+  margin-bottom: 4px;
+}
+
+.shapeGrid {
+  display: grid;
+  gap: 8px;
+}
+
+.shapeBtn {
+  padding: 8px 4px;
+  background: var(--bg-light);
+  color: var(--text);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  cursor: pointer;
+  font-size: 20px;
+  transition: all var(--transition);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 2px;
+}
+
+.shapeBtnActive {
+  background: var(--primary);
+  color: white;
+  border-color: var(--primary-dark);
+}
+
+.shapeLabel {
+  font-size: var(--font-xs);
+}
+
+.colorRow {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+}
+
+.colorPicker {
+  width: 32px;
+  height: 32px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  cursor: pointer;
+  padding: 2px;
+}
+
+.colorText {
+  flex: 1;
+  padding: 4px 6px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  font-size: var(--font-md);
+  font-family: monospace;
+}
+
+.rangeRow {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+}
+
+.rangeSlider {
+  flex: 1;
+}
+
+.numberInput {
+  width: 50px;
+  padding: 4px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  font-size: var(--font-md);
+  text-align: center;
+}
+
+.sizeRow {
+  display: flex;
+  gap: 8px;
+}
+
+.sizeField {
+  flex: 1;
+}
+
+.sizeInput {
+  width: 100%;
+  padding: 4px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  font-size: var(--font-md);
+  box-sizing: border-box;
+}
+
+.actions {
+  display: flex;
+  gap: 8px;
+  justify-content: flex-end;
+}
+
+.cancelBtn {
+  padding: 6px 16px;
+  font-size: var(--font-md);
+  background: var(--bg-light);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  cursor: pointer;
+  transition: background var(--transition);
+}
+
+.cancelBtn:hover {
+  background: var(--bg-light-hover);
+}
+
+.addBtn {
+  padding: 6px 16px;
+  font-size: var(--font-md);
+  background: var(--primary);
+  color: white;
+  border: none;
+  border-radius: var(--radius);
+  cursor: pointer;
+  transition: background var(--transition);
+}
+
+.addBtn:hover {
+  background: var(--primary-dark);
+}
+
+.mb8 {
+  margin-bottom: 8px;
+}
+
+.mb12 {
+  margin-bottom: 12px;
+}

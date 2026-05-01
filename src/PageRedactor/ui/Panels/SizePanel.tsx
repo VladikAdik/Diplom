@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import styles from './SizePanel.module.css';
 
 interface SizePanelProps {
     currentWidth: number;
@@ -34,15 +35,9 @@ export function SizePanel({ currentWidth, currentHeight, onApply, onClose }: Siz
     };
 
     return (
-        <div style={{
-            padding: '16px',
-            minWidth: '220px',
-            background: 'white'
-        }}>
-            <div style={{ marginBottom: '12px' }}>
-                <label style={{ display: 'block', fontSize: '12px', color: '#666', marginBottom: '4px' }}>
-                    Ширина (px)
-                </label>
+        <div className={styles.panel}>
+            <div className={styles.mb12}>
+                <label className={styles.label}>Ширина (px)</label>
                 <input
                     type="text"
                     value={width}
@@ -50,64 +45,23 @@ export function SizePanel({ currentWidth, currentHeight, onApply, onClose }: Siz
                     onKeyDown={handleKeyDown}
                     placeholder={String(currentWidth)}
                     autoFocus
-                    style={{
-                        width: '100%',
-                        padding: '6px 8px',
-                        border: '1px solid #ddd',
-                        borderRadius: '4px',
-                        fontSize: '13px',
-                        boxSizing: 'border-box'
-                    }}
+                    className={styles.input}
                 />
             </div>
-            <div style={{ marginBottom: '12px' }}>
-                <label style={{ display: 'block', fontSize: '12px', color: '#666', marginBottom: '4px' }}>
-                    Высота (px)
-                </label>
+            <div className={styles.mb12}>
+                <label className={styles.label}>Высота (px)</label>
                 <input
                     type="text"
                     value={height}
                     onChange={handleHeightChange}
                     onKeyDown={handleKeyDown}
                     placeholder={String(currentHeight)}
-                    style={{
-                        width: '100%',
-                        padding: '6px 8px',
-                        border: '1px solid #ddd',
-                        borderRadius: '4px',
-                        fontSize: '13px',
-                        boxSizing: 'border-box'
-                    }}
+                    className={styles.input}
                 />
             </div>
-            <div style={{ display: 'flex', gap: '6px', justifyContent: 'flex-end' }}>
-                <button
-                    onClick={onClose}
-                    style={{
-                        padding: '4px 12px',
-                        fontSize: '12px',
-                        background: '#f5f5f5',
-                        border: '1px solid #ddd',
-                        borderRadius: '4px',
-                        cursor: 'pointer'
-                    }}
-                >
-                    Отмена
-                </button>
-                <button
-                    onClick={handleApply}
-                    style={{
-                        padding: '4px 12px',
-                        fontSize: '12px',
-                        background: '#2196F3',
-                        color: 'white',
-                        border: 'none',
-                        borderRadius: '4px',
-                        cursor: 'pointer'
-                    }}
-                >
-                    Применить
-                </button>
+            <div className={styles.actions}>
+                <button onClick={onClose} className={styles.cancelBtn}>Отмена</button>
+                <button onClick={handleApply} className={styles.applyBtn}>Применить</button>
             </div>
         </div>
     );

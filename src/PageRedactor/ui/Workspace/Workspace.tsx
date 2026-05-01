@@ -10,8 +10,8 @@ import type { SnapGuide } from '../../hooks/interaction';
 import type { Layer } from '../../types/Layer';
 import type Konva from 'konva';
 import { CropOverlay } from './CropOverlay';
+import styles from './Workspace.module.css';
 
-// === Типы ===
 interface WorkspaceProps {
     layers: Layer[];
     selectedLayerIds: Set<string>;
@@ -34,7 +34,7 @@ interface WorkspaceProps {
     cropHandlers?: {
         onMouseDown: () => void;
         onMouseMove: () => void;
-        onMouseUp: () => void;  // ← добавить
+        onMouseUp: () => void;
     };
     rectArea: { x: number; y: number; width: number; height: number };
     freePoints: { x: number; y: number }[];
@@ -51,23 +51,6 @@ type TransformData = {
     rotation: number;
 };
 
-// === Стили ===
-const CONTAINER_STYLE: React.CSSProperties = {
-    width: '100%',
-    height: 'calc(100vh - 100px)',
-    overflow: 'hidden',
-    display: 'flex',
-    justifyContent: 'center',
-    alignItems: 'center',
-};
-
-const STAGE_STYLE = (tool: string): React.CSSProperties => ({
-    border: '1px solid #ccc',
-    background: '#f5f5f5',
-    cursor: tool === 'select' ? 'default' : 'crosshair',
-});
-
-// === Компонент ===
 export function Workspace({
     layers,
     selectedLayerIds,
@@ -89,10 +72,8 @@ export function Workspace({
     onEditText,
 }: WorkspaceProps) {
 
-    // Управление сценой
     const { containerRef, updatePreview } = useWorkspaceLogic({ onUpdate, stageRef });
 
-    // Выделение рамкой
     const { isSelecting, selectionRect } = useSelectionRect({
         stageRef,
         selectedTool,
@@ -104,11 +85,9 @@ export function Workspace({
     useEffect(() => {
         const stage = stageRef.current;
         if (!stage || !penHandlers) return;
-
         stage.on('mousedown.drawing', penHandlers.onMouseDown);
         stage.on('mousemove.drawing', penHandlers.onMouseMove);
         stage.on('mouseup.drawing', penHandlers.onMouseUp);
-
         return () => {
             stage.off('mousedown.drawing');
             stage.off('mousemove.drawing');
@@ -118,19 +97,17 @@ export function Workspace({
 
     useEffect(() => {
         const stage = stageRef.current;
-        if (!stage || !cropHandlers || selectedTool !== 'cropRect' && selectedTool !== 'cropFree') return;
-
+        if (!stage || !cropHandlers || (selectedTool !== 'cropRect' && selectedTool !== 'cropFree')) return;
         stage.on('mousedown.crop', cropHandlers.onMouseDown);
         stage.on('mousemove.crop', cropHandlers.onMouseMove);
         stage.on('mouseup.crop', cropHandlers.onMouseUp);
-
         return () => {
             stage.off('mousedown.crop');
             stage.off('mousemove.crop');
+            stage.off('mouseup.crop');
         };
     }, [stageRef, cropHandlers, selectedTool]);
 
-    // Конец перетаскивания слоя
     const handleDragEnd = useCallback(
         (layerId: string, x: number, y: number) => {
             onLayerDragEnd(layerId, x, y);
@@ -139,7 +116,6 @@ export function Workspace({
         [onLayerDragEnd, updatePreview]
     );
 
-    // Конец трансформации (масштабирование/поворот)
     const handleTransformEnd = useCallback(
         (transforms: TransformData[]) => {
             onTransformEnd(transforms);
@@ -148,21 +124,21 @@ export function Workspace({
         [onTransformEnd, updatePreview]
     );
 
-    // Трансформер показываем только в режиме выделения
     const showTransformer = selectedTool === 'select';
     const isCropping = selectedTool === 'cropRect' || selectedTool === 'cropFree';
     const cropShape = selectedTool === 'cropRect' ? 'rect' : 'free';
     const activeLayer = layers.find(l => selectedLayerIds.has(l.id));
 
+    const stageClass = selectedTool === 'select' ? styles.stageDefault : styles.stageCrosshair;
+
     return (
-        <div ref={containerRef} style={CONTAINER_STYLE}>
+        <div ref={containerRef} className={styles.container}>
             <Stage
                 ref={stageRef}
                 width={stageSize.width}
                 height={stageSize.height}
-                style={STAGE_STYLE(selectedTool)}
+                className={stageClass}
             >
-                {/* Слои */}
                 <KonvaLayer>
                     {layers.map((layer) => (
                         <LayerRenderer
@@ -179,11 +155,10 @@ export function Workspace({
                         />
                     ))}
 
-                    {/* Трансформер для выделенных */}
                     <TransformControls
                         selectedNodeIds={showTransformer ? selectedLayerIds : new Set()}
                         layerRefs={layerRefs}
-                        layers={layers} 
+                        layers={layers}
                         onTransformEnd={handleTransformEnd}
                     />
                     <SnapGuides
@@ -198,10 +173,9 @@ export function Workspace({
                     cropShape={cropShape}
                     rectArea={rectArea}
                     freePoints={freePoints}
-                    targetLayer={activeLayer} 
+                    targetLayer={activeLayer}
                 />
 
-                {/* Рамка выделения */}
                 <SelectionRectLayer
                     isSelecting={isSelecting}
                     selectionRect={selectionRect}

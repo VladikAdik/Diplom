@@ -1,4 +1,5 @@
-import { type ReactNode } from 'react'
+import type { ReactNode } from 'react';
+import styles from './HeaderTabItem.module.css';
 
 interface HeaderTabItemProps {
     onClick?: () => void;
@@ -12,16 +13,7 @@ export function HeaderTabItem({ onClick, children }: HeaderTabItemProps) {
                 e.stopPropagation();
                 onClick?.();
             }}
-            style={{
-                padding: '8px 16px',
-                cursor: 'pointer',
-                fontSize: '13px',
-                color: '#333',
-                transition: 'background 0.15s',
-                whiteSpace: 'nowrap'
-            }}
-            onMouseEnter={(e) => e.currentTarget.style.background = '#f0f0f0'}
-            onMouseLeave={(e) => e.currentTarget.style.background = 'transparent'}
+            className={styles.item}
         >
             {children}
         </div>

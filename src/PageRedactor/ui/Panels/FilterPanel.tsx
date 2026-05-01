@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import styles from './FilterPanel.module.css';
 
 export type FilterType = 'none' | 'grayscale' | 'sepia' | 'invert' | 'blur' | 'brightness' | 'contrast' | 'saturate';
 
@@ -32,16 +33,10 @@ export function FilterPanel({
     ];
 
     return (
-        <div style={{
-            padding: '16px',
-            minWidth: '240px',
-            background: 'white',
-            borderRadius: '8px',
-            boxShadow: '0 4px 12px rgba(0,0,0,0.15)',
-        }}>
-            <h4 style={{ margin: '0 0 12px 0', fontSize: '14px' }}>Фильтры</h4>
+        <div className={styles.panel}>
+            <h4 className={styles.title}>Фильтры</h4>
 
-            <div style={{ marginBottom: '12px' }}>
+            <div className={styles.mb12}>
                 <select
                     value={filter}
                     onChange={(e) => {
@@ -51,13 +46,7 @@ export function FilterPanel({
                         setValue(newVal);
                         onFilterChange(newFilter, newVal);
                     }}
-                    style={{
-                        width: '100%',
-                        padding: '6px 8px',
-                        border: '1px solid #ddd',
-                        borderRadius: '4px',
-                        fontSize: '13px',
-                    }}
+                    className={styles.select}
                 >
                     {filters.map(f => (
                         <option key={f.type} value={f.type}>{f.label}</option>
@@ -66,8 +55,8 @@ export function FilterPanel({
             </div>
 
             {filter !== 'none' && (
-                <div style={{ marginBottom: '12px' }}>
-                    <label style={{ display: 'block', fontSize: '12px', color: '#666', marginBottom: '4px' }}>
+                <div className={styles.mb12}>
+                    <label className={styles.sliderLabel}>
                         {filters.find(f => f.type === filter)?.label}: {value}{filters.find(f => f.type === filter)?.unit}
                     </label>
                     <input
@@ -81,39 +70,14 @@ export function FilterPanel({
                             setValue(newVal);
                             onFilterChange(filter, newVal);
                         }}
-                        style={{ width: '100%' }}
+                        className={styles.slider}
                     />
                 </div>
             )}
 
-            <div style={{ display: 'flex', gap: '8px', justifyContent: 'flex-end' }}>
-                <button
-                    onClick={onClose}
-                    style={{
-                        padding: '6px 12px',
-                        fontSize: '12px',
-                        background: '#f5f5f5',
-                        border: '1px solid #ddd',
-                        borderRadius: '4px',
-                        cursor: 'pointer',
-                    }}
-                >
-                    Отмена
-                </button>
-                <button
-                    onClick={() => { onApply(filter, value); onClose(); }}
-                    style={{
-                        padding: '6px 12px',
-                        fontSize: '12px',
-                        background: '#2196F3',
-                        color: 'white',
-                        border: 'none',
-                        borderRadius: '4px',
-                        cursor: 'pointer',
-                    }}
-                >
-                    Применить
-                </button>
+            <div className={styles.actions}>
+                <button onClick={onClose} className={styles.cancelBtn}>Отмена</button>
+                <button onClick={() => { onApply(filter, value); onClose(); }} className={styles.applyBtn}>Применить</button>
             </div>
         </div>
     );

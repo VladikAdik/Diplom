@@ -1,0 +1,12 @@
+.item {
+  padding: 8px 16px;
+  cursor: pointer;
+  font-size: var(--font-base);
+  color: var(--text);
+  transition: background var(--transition);
+  white-space: nowrap;
+}
+
+.item:hover {
+  background: #f0f0f0;
+}

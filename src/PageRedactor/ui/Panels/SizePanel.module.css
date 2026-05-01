@@ -1,0 +1,50 @@
+.panel {
+  padding: 16px;
+  min-width: 220px;
+  background: var(--bg-panel);
+}
+
+.label {
+  display: block;
+  font-size: var(--font-md);
+  color: var(--text-light);
+  margin-bottom: 4px;
+}
+
+.input {
+  width: 100%;
+  padding: 6px 8px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  font-size: var(--font-base);
+  box-sizing: border-box;
+}
+
+.actions {
+  display: flex;
+  gap: 6px;
+  justify-content: flex-end;
+}
+
+.cancelBtn {
+  padding: 4px 12px;
+  font-size: var(--font-md);
+  background: var(--bg-light);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  cursor: pointer;
+}
+
+.applyBtn {
+  padding: 4px 12px;
+  font-size: var(--font-md);
+  background: var(--primary);
+  color: white;
+  border: none;
+  border-radius: var(--radius);
+  cursor: pointer;
+}
+
+.mb12 {
+  margin-bottom: 12px;
+}
