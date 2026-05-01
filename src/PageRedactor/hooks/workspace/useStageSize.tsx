@@ -1,5 +1,5 @@
 import { useState, useCallback } from 'react';
-import { WORKSPACE_PADDING, DEFAULT_STAGE_WIDTH, DEFAULT_STAGE_HEIGHT } from '../constants/editor';
+import { WORKSPACE_PADDING, DEFAULT_STAGE_WIDTH, DEFAULT_STAGE_HEIGHT } from '../../constants/editor';
 
 export function useStageSize() {
     const [stageSize, setStageSize] = useState({ 
@@ -33,7 +33,6 @@ export function useStageSize() {
     const getStageCenter = useCallback(() => {
         const width = stageSize.width;
         const height = stageSize.height;
-        console.log('Center:', { width, height });
         return {
             x: width / 2,
             y: height / 2

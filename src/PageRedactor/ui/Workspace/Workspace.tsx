@@ -1,12 +1,12 @@
 import { useCallback, useEffect } from 'react';
 import { Stage, Layer as KonvaLayer } from 'react-konva';
-import { useWorkspaceLogic } from '../../hooks/useWorkspace';
-import { useSelectionRect } from '../../hooks/useSelectionRect';
+import { useWorkspaceLogic } from '../../hooks/workspace';
+import { useSelectionRect } from '../../hooks/interaction';
 import { LayerRenderer } from './LayerRenderer';
 import { SnapGuides } from './SnapGuides';
 import { TransformControls } from './TransformControls';
 import { SelectionRectLayer } from './SelectionRectLayer';
-import type { SnapGuide } from '../../hooks/useSnapMove';
+import type { SnapGuide } from '../../hooks/interaction';
 import type { Layer } from '../../types/Layer';
 import type Konva from 'konva';
 import { CropOverlay } from './CropOverlay';

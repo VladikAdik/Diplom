@@ -1,5 +1,5 @@
 import { useCallback } from 'react';
-import type { Layer } from '../types/Layer';
+import type { Layer } from '../../types/Layer';
 
 const SNAP_THRESHOLD = 10;
 

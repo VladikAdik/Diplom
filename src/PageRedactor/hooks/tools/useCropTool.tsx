@@ -1,6 +1,6 @@
 import { useState, useCallback, useRef } from 'react';
 import type Konva from 'konva';
-import type { Layer } from '../types/Layer';
+import type { Layer } from '../../types/Layer';
 
 interface UseCropToolProps {
     stageRef: React.RefObject<Konva.Stage | null>;

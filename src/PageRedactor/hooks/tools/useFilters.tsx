@@ -1,5 +1,5 @@
 import { useCallback, useRef } from 'react';
-import type { Layer } from '../types/Layer';
+import type { Layer } from '../../types/Layer';
 
 export type FilterType = 'none' | 'grayscale' | 'sepia' | 'invert' | 'blur' | 'brightness' | 'contrast' | 'saturate';
 

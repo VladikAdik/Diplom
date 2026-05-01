@@ -1,6 +1,6 @@
 import { useRef, useEffect, useCallback, useState } from 'react';
 import Konva from 'konva';
-import { MIN_SCALE, MAX_SCALE } from '../constants/editor';
+import { MIN_SCALE, MAX_SCALE } from '../../constants/editor';
 
 interface WorkspaceLogicProps {
     onUpdate?: (url: string) => void;

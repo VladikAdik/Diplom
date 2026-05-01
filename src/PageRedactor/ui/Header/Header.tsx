@@ -2,7 +2,7 @@ import { useState, useCallback } from "react";
 import { HeaderTab } from "./HeaderTab";
 import { HeaderTabItem } from "./HeaderTabItem";
 import { SizePanel } from "../Panels/SizePanel";
-import { usePopover } from "../../hooks/usePopover";
+import { usePopover } from "../../hooks/interaction";
 
 interface HeaderProps {
     onNewProject?: () => void;

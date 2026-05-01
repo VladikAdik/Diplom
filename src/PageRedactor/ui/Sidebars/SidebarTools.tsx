@@ -2,7 +2,7 @@ import { useEffect } from 'react';
 import { PenPanel } from '../Panels/PenPanel';
 import { FilterPanel } from '../Panels/FilterPanel';
 import type { FilterType } from '../Panels/FilterPanel';
-import { usePopover } from '../../hooks/usePopover';
+import { usePopover } from '../../hooks/interaction';
 import { ShapePanel } from '../Panels/ShapePanel';
 import { TextPanel } from '../Panels/TextPanel';
 import type { ShapeConfig, TextConfig  } from '../../types/Layer';

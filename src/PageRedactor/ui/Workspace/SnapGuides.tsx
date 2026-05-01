@@ -1,5 +1,5 @@
 import { Line } from 'react-konva';
-import type { SnapGuide } from '../../hooks/useSnapMove';
+import type { SnapGuide } from '../../hooks/interaction';
 
 interface SnapGuidesProps {
     guides: SnapGuide[];

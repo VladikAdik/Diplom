@@ -1,5 +1,5 @@
 import { useRef, type ReactNode } from 'react';
-import { usePopover } from '../../hooks/usePopover';
+import { usePopover } from '../../hooks/interaction';
 
 interface HeaderTabProps {
     title: string;

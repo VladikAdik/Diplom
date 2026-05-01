@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from 'react';
 import type Konva from 'konva';
-import type { Layer } from '../types/Layer';
-import { DEFAULT_LAYER_X, DEFAULT_LAYER_Y, DEFAULT_SHAPE_WIDTH } from '../constants/editor';
+import type { Layer } from '../../types/Layer';
+import { DEFAULT_LAYER_X, DEFAULT_LAYER_Y, DEFAULT_SHAPE_WIDTH } from '../../constants/editor';
 
 interface UseSelectionRectProps {
     stageRef: React.RefObject<Konva.Stage | null>;
@@ -37,38 +37,52 @@ export function useSelectionRect({
 
         // Начало рисования рамки
         const handleMouseDown = (e: Konva.KonvaEventObject<MouseEvent>) => {
-            if (selectedTool !== 'select') return;
-            if (e.target !== stage) return;  // Только клик по пустому фону
+        if (selectedTool !== 'select') return;
+        if (e.target !== stage) return;
 
-            const pos = stage.getPointerPosition();
-            if (!pos) return;
+        const pos = stage.getPointerPosition();
+        if (!pos) return;
 
-            isDrawingRef.current = true;
-            selectionStartRef.current = pos;
-            setIsSelecting(true);
-            setSelectionRect({ x: pos.x, y: pos.y, width: 0, height: 0 });
-        };
+        // ✅ Учитываем трансформацию stage
+        const transform = stage.getAbsoluteTransform().copy();
+        transform.invert();
+        const adjustedPos = transform.point({ x: pos.x, y: pos.y });
+
+        isDrawingRef.current = true;
+        selectionStartRef.current = adjustedPos;
+        setIsSelecting(true);
+        setSelectionRect({ 
+            x: adjustedPos.x, 
+            y: adjustedPos.y, 
+            width: 0, 
+            height: 0 
+        });
+    };
 
         // Обновление размеров рамки при движении мыши
         const handleMouseMove = () => {
-            if (!isDrawingRef.current || selectedTool !== 'select') return;
+        if (!isDrawingRef.current || selectedTool !== 'select') return;
 
-            const pos = stage.getPointerPosition();
-            if (!pos) return;
+        const pos = stage.getPointerPosition();
+        if (!pos) return;
 
-            const startX = selectionStartRef.current.x;
-            const startY = selectionStartRef.current.y;
-            const width = pos.x - startX;
-            const height = pos.y - startY;
+        // ✅ Учитываем трансформацию stage
+        const transform = stage.getAbsoluteTransform().copy();
+        transform.invert();
+        const adjustedPos = transform.point({ x: pos.x, y: pos.y });
 
-            // Поддерживаем отрицательные размеры (перетаскивание влево/вверх)
-            setSelectionRect({
-                x: width > 0 ? startX : pos.x,
-                y: height > 0 ? startY : pos.y,
-                width: Math.abs(width),
-                height: Math.abs(height)
-            });
-        };
+        const startX = selectionStartRef.current.x;
+        const startY = selectionStartRef.current.y;
+        const width = adjustedPos.x - startX;
+        const height = adjustedPos.y - startY;
+
+        setSelectionRect({
+            x: width > 0 ? startX : adjustedPos.x,
+            y: height > 0 ? startY : adjustedPos.y,
+            width: Math.abs(width),
+            height: Math.abs(height)
+        });
+    };
 
         // Завершение рисования рамки
         const handleMouseUp = (e: Konva.KonvaEventObject<MouseEvent>) => {

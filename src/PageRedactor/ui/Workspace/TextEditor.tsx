@@ -1,3 +1,4 @@
+// components/Workspace/TextEditor.tsx
 import { useState, useEffect, useRef, useCallback } from 'react';
 import Konva from 'konva';
 
@@ -10,8 +11,8 @@ interface TextEditorProps {
 export function TextEditor({ node, onSave, onCancel }: TextEditorProps) {
     const [value, setValue] = useState(node.text());
     const textareaRef = useRef<HTMLTextAreaElement>(null);
+    const originalTextRef = useRef(node.text());
 
-    // Авто-подстройка высоты под контент
     const autoResize = useCallback(() => {
         const ta = textareaRef.current;
         if (!ta) return;
@@ -22,9 +23,8 @@ export function TextEditor({ node, onSave, onCancel }: TextEditorProps) {
     useEffect(() => {
         const ta = textareaRef.current;
         if (!ta) return;
-        
         ta.focus();
-        ta.select();
+        ta.setSelectionRange(0, ta.value.length);
         autoResize();
     }, [autoResize]);
 
@@ -32,68 +32,141 @@ export function TextEditor({ node, onSave, onCancel }: TextEditorProps) {
         autoResize();
     }, [value, autoResize]);
 
+    const handleChange = useCallback((newValue: string) => {
+        setValue(newValue);
+        node.text(newValue);
+        node.getLayer()?.batchDraw();
+    }, [node]);
+
+    const handleSave = useCallback(() => {
+        onSave(value);
+    }, [value, onSave]);
+
+    const handleCancel = useCallback(() => {
+        node.text(originalTextRef.current);
+        node.getLayer()?.batchDraw();
+        onCancel();
+    }, [node, onCancel]);
+
     const handleKeyDown = (e: React.KeyboardEvent) => {
         if (e.key === 'Enter' && !e.shiftKey) {
             e.preventDefault();
-            onSave(value);
+            handleSave();
         }
         if (e.key === 'Escape') {
             e.preventDefault();
-            onCancel();
+            handleCancel();
         }
     };
 
-    // Пересчитываем позицию с учётом всех трансформаций
-    const stage = node.getStage();
-    const stageBox = stage?.container().getBoundingClientRect();
-    const stagePos = stage?.getAbsolutePosition() || { x: 0, y: 0 };
-    const scale = stage?.scaleX() || 1;
-    
-    // Абсолютная позиция узла
-    const nodeAbsPos = node.getAbsolutePosition();
-    
-    // Координаты относительно контейнера сцены
-    const x = (nodeAbsPos.x - stagePos.x) * scale + (stageBox?.left || 0);
-    const y = (nodeAbsPos.y - stagePos.y) * scale + (stageBox?.top || 0);
-    
-    // Размеры с учётом масштаба
-    const width = Math.max(node.width() * scale, 100);
-    const height = Math.max(node.height() * scale, 30);
+    const getTextareaStyle = useCallback((): React.CSSProperties => {
+        const stage = node.getStage();
+        if (!stage) return {};
+
+        const containerRect = stage.container().getBoundingClientRect();
+        const scale = stage.scaleX();
+        const absPos = node.getAbsolutePosition();
+        
+        const x = containerRect.left + (absPos.x * scale);
+        // ✅ Позиционируем ПОД текстом: top текста + его высота
+        const textHeight = node.height() * scale;
+        const y = containerRect.top + (absPos.y * scale) + textHeight + 4; // +4px отступ
+        
+        const width = Math.max(node.width() * scale, 100);
+
+        const fontSize = node.fontSize() * scale;
+        const fontFamily = node.fontFamily();
+        const fill = node.fill() as string;
+        const align = node.align() || 'left';
+        const lineHeight = node.lineHeight() || 1.2;
+
+        return {
+            position: 'fixed' as const,
+            left: `${x}px`,
+            top: `${y}px`,
+            width: `${width}px`,
+            fontSize: `${fontSize}px`,
+            fontFamily: fontFamily,
+            color: fill,
+            textAlign: align as React.CSSProperties['textAlign'],
+            lineHeight: lineHeight,
+        };
+    }, [node]);
 
     return (
-        <textarea
-            ref={textareaRef}
-            value={value}
-            onChange={(e) => setValue(e.target.value)}
-            onKeyDown={handleKeyDown}
-            onBlur={() => onSave(value)}
-            style={{
-                position: 'fixed',  // fixed чтобы не зависеть от скролла
-                left: x,
-                top: y,
-                width: width,
-                minWidth: 100,
-                minHeight: height,
-                fontSize: node.fontSize() * scale,
-                fontFamily: node.fontFamily(),
-                color: node.fill() as string,
-                background: 'transparent',
-                border: '1px solid transparent',
-                outline: 'none',
-                padding: '2px 4px',
-                margin: '0',
-                overflow: 'hidden',
-                whiteSpace: 'pre-wrap',
-                wordBreak: 'break-word',
-                lineHeight: node.lineHeight() || 1.2,
-                resize: 'none',
-                zIndex: 10000,
-                boxSizing: 'border-box',
-                transition: 'border-color 0.15s',
-            }}
-            onFocus={(e) => {
-                e.target.style.border = '1px solid #2196F3';
-            }}
-        />
+        <div style={{
+            position: 'fixed',
+            zIndex: 10000,
+            background: 'white',
+            borderRadius: '4px',
+            boxShadow: '0 4px 12px rgba(0,0,0,0.15)',
+            border: '2px solid #2196F3',
+            ...getTextareaStyle(),
+        }}>
+            <textarea
+                ref={textareaRef}
+                value={value}
+                onChange={(e) => handleChange(e.target.value)}
+                onKeyDown={handleKeyDown}
+                style={{
+                    width: '100%',
+                    minHeight: '30px',
+                    background: 'transparent',
+                    border: 'none',
+                    outline: 'none',
+                    padding: '8px',
+                    margin: '0',
+                    fontSize: 'inherit',
+                    fontFamily: 'inherit',
+                    color: 'inherit',
+                    lineHeight: 'inherit',
+                    resize: 'none',
+                    overflow: 'hidden',
+                    whiteSpace: 'pre-wrap',
+                    wordBreak: 'break-word',
+                    boxSizing: 'border-box',
+                }}
+            />
+            <div style={{
+                display: 'flex',
+                justifyContent: 'flex-end',
+                gap: '4px',
+                padding: '4px 8px',
+                borderTop: '1px solid #eee',
+                background: '#fafafa',
+                borderRadius: '0 0 4px 4px',
+            }}>
+                <button
+                    onMouseDown={(e) => e.preventDefault()}
+                    onClick={handleSave}
+                    style={{
+                        padding: '4px 12px',
+                        fontSize: '12px',
+                        background: '#4CAF50',
+                        color: 'white',
+                        border: 'none',
+                        borderRadius: '3px',
+                        cursor: 'pointer',
+                    }}
+                >
+                    ✓
+                </button>
+                <button
+                    onMouseDown={(e) => e.preventDefault()}
+                    onClick={handleCancel}
+                    style={{
+                        padding: '4px 12px',
+                        fontSize: '12px',
+                        background: '#f44336',
+                        color: 'white',
+                        border: 'none',
+                        borderRadius: '3px',
+                        cursor: 'pointer',
+                    }}
+                >
+                    ✕
+                </button>
+            </div>
+        </div>
     );
 }

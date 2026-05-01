@@ -1,6 +1,6 @@
 import { useCallback, useRef, useState } from 'react';
-import type { Layer } from '../types/Layer';
-import { MAX_HISTORY_SIZE } from '../constants/editor';
+import type { Layer } from '../../types/Layer';
+import { MAX_HISTORY_SIZE } from '../../constants/editor';
 
 interface HistoryState {
     layers: Layer[];  // Уже сериализованные (без runtime)

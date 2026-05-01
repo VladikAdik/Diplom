@@ -1,17 +1,12 @@
 import { useState, useCallback, useEffect, useRef } from 'react';
-import { Header } from './Header/Header';
-import { Workspace } from './Workspace/Workspace';
-import { SidebarLayers } from './Sidebars/SidebarLayers';
-import { SidebarTools } from './Sidebars/SidebarTools';
-import { SidebarSummary } from './Sidebars/SidebarSummary';
-import { useLayers } from '../hooks/useLayers';
-import { useStageSize } from '../hooks/useStageSize';
-import { useDrawingTool } from '../hooks/usePenTool';
-import { useCropTool } from '../hooks/useCropTool';
 import type Konva from 'konva';
 import type { Layer } from '../types/Layer';
 import { TextEditor } from './Workspace/TextEditor';
 import type { ShapeConfig, TextConfig } from '../types/Layer';
+import { useLayers } from '../hooks/layers';
+import { useStageSize } from '../hooks/workspace';
+import { useDrawingTool, useCropTool } from '../hooks/tools';
+import { Header, Workspace, SidebarLayers, SidebarTools, SidebarSummary } from './index';
 
 interface PageRedactorProps {
     image: HTMLImageElement | null;
@@ -243,8 +238,6 @@ export function PageRedactor({ image }: PageRedactorProps) {
     // Добавьте обработчики:
     const handleEditText = useCallback((id: string, node: Konva.Text) => {
         // Скрываем оригинальный текст
-        node.visible(false);
-        node.getLayer()?.batchDraw();
 
         setEditingText({ id, node });
     }, []);

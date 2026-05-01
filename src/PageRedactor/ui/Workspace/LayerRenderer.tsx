@@ -108,7 +108,17 @@ export const LayerRenderer = memo(({
                         name={layer.id}
                         onDblClick={(e) => {
                             e.cancelBubble = true;
-                            onEditText?.(layer.id, e.target as Konva.Text);
+                            const textNode = e.target as Konva.Text;
+                            // ✅ Показываем textarea, но не скрываем текст
+                            onEditText?.(layer.id, textNode);
+                        }}
+                        onTransform={() => {
+                            // Авто-обновление размера при трансформации
+                            const textNode = layerRefs.current.get(layer.id)?.findOne('Text') as Konva.Text;
+                            if (textNode) {
+                                textNode.width(textNode.width() * textNode.scaleX());
+                                textNode.scaleX(1);
+                            }
                         }}
                     />
                 );

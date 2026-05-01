@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useRef } from 'react';
 import Konva from 'konva';
-import type { Layer } from '../types/Layer';
+import type { Layer } from '../../types/Layer';
 
 interface DrawingSettings {
     color: string;
