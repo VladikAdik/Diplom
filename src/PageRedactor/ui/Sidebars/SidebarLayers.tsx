@@ -10,6 +10,7 @@ interface SidebarLayersProps {
     onToggleLock?: (id: string) => void;
     onRemoveLayer?: (id: string) => void;
     onAddLayer?: () => void;
+    previewUrl?: string;  // ← добавили
 }
 
 const LayerItem = memo(({
@@ -75,10 +76,24 @@ export function SidebarLayers({
     onToggleVisibility,
     onToggleLock,
     onRemoveLayer,
-    onAddLayer
+    onAddLayer,
+    previewUrl,
 }: SidebarLayersProps) {
     return (
         <div className={styles.panel}>
+            {/* Превью */}
+            {previewUrl && (
+                <div className={styles.preview}>
+                    <img
+                        src={previewUrl}
+                        alt="Превью"
+                        className={styles.previewImage}
+                    />
+                    <div className={styles.previewLabel}>Превью</div>
+                </div>
+            )}
+
+            {/* Заголовок слоёв */}
             <div className={styles.header}>
                 <h4 className={styles.title}>
                     📑 Слои
@@ -86,6 +101,7 @@ export function SidebarLayers({
                 </h4>
             </div>
 
+            {/* Список слоёв */}
             <div className={styles.list}>
                 {layers.length === 0 ? (
                     <div className={styles.empty}>

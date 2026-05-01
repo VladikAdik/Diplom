@@ -9,7 +9,7 @@ import { useHistory } from '../workspace';
 import { useSnapMove, type SnapGuide } from '../interaction';
 import { useFilters } from '../tools';
 
-export function useLayers(stageSize: { width: number; height: number }) {
+export function useLayers() {
   const [layers, setLayers] = useState<Layer[]>([]);
   const layerRefs = useRef<Map<string, Konva.Group>>(new Map());
   const [snapGuides, setSnapGuides] = useState<SnapGuide[]>([]);
@@ -172,7 +172,7 @@ export function useLayers(stageSize: { width: number; height: number }) {
 
   const { handleDragMove, handleDragEnd } = useSnapMove({
     layers,
-    stageSize,
+    stageSize: { width: 10000, height: 10000 },
     setSnapGuides,
     onPositionChange: handlePositionChange,
   });

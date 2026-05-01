@@ -61,6 +61,8 @@ export const LayerRenderer = memo(({
 
     // Общий обработчик клика для всех типов
     const handleMouseDown = (e: Konva.KonvaEventObject<MouseEvent>) => {
+        if (e.evt.button === 1) return
+
         if (selectedTool === 'select') {
             // Только в режиме выделения реагируем на клик
             e.cancelBubble = true;
@@ -150,6 +152,11 @@ export const LayerRenderer = memo(({
             opacity={layer.opacity}
             listening={!layer.locked}
             draggable={canDrag}
+            onDragStart={(e) => {
+                if (e.evt.button === 1) {
+                    e.target.stopDrag();
+                }
+            }}
             onMouseDown={handleMouseDown}
             onDragMove={handleDragMove}
             onDragEnd={handleDragEnd}

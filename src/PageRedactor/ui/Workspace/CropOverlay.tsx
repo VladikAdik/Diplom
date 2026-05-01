@@ -6,7 +6,9 @@ interface CropOverlayProps {
     cropShape: 'rect' | 'free';
     rectArea: { x: number; y: number; width: number; height: number };
     freePoints: { x: number; y: number }[];
-    targetLayer?: Layer | null;  // ← добавить
+    targetLayer?: Layer | null;
+    stageWidth?: number;
+    stageHeight?: number;
 }
 
 export function CropOverlay({ isCropping, cropShape, rectArea, freePoints, targetLayer }: CropOverlayProps) {
@@ -18,7 +20,7 @@ export function CropOverlay({ isCropping, cropShape, rectArea, freePoints, targe
     return (
         <KonvaLayer>
             {/* Затемнение всей сцены */}
-            <Rect x={0} y={0} width={3000} height={3000} fill="rgba(0,0,0,0.5)" listening={false} />
+            <Rect x={-5000} y={-5000} width={10000} height={10000} fill="rgba(0,0,0,0.5)" listening={false} />
             
             {/* Вырезаемая область (прозрачная) */}
             <Group x={layerX} y={layerY}>

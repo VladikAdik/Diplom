@@ -1,4 +1,4 @@
-import { useCallback, useEffect } from 'react';
+import { useCallback } from 'react';
 import { Stage, Layer as KonvaLayer } from 'react-konva';
 import { useWorkspaceLogic } from '../../hooks/workspace';
 import { useSelectionRect } from '../../hooks/interaction';
@@ -17,7 +17,6 @@ interface WorkspaceProps {
     selectedLayerIds: Set<string>;
     selectedTool: string;
     layerRefs: React.RefObject<Map<string, Konva.Group>>;
-    stageSize: { width: number; height: number };
     onSelectLayer: (id: string, multiSelect?: boolean) => void;
     onClearSelection: () => void;
     onLayerDragEnd: (id: string, x: number, y: number) => void;
@@ -38,7 +37,6 @@ interface WorkspaceProps {
     };
     rectArea: { x: number; y: number; width: number; height: number };
     freePoints: { x: number; y: number }[];
-    targetLayer?: Layer | null;
     onEditText?: (id: string, node: Konva.Text) => void;
 }
 
@@ -56,7 +54,6 @@ export function Workspace({
     selectedLayerIds,
     selectedTool,
     layerRefs,
-    stageSize,
     stageRef,
     penHandlers,
     onSelectLayer,
@@ -72,7 +69,14 @@ export function Workspace({
     onEditText,
 }: WorkspaceProps) {
 
-    const { containerRef, updatePreview } = useWorkspaceLogic({ onUpdate, stageRef });
+    const {
+        containerRef,
+        stageSize,
+        updatePreview,
+        handleMouseDown: panMouseDown,
+        handleMouseMove: panMouseMove,
+        handleMouseUp: panMouseUp,
+    } = useWorkspaceLogic({ onUpdate, stageRef });
 
     const { isSelecting, selectionRect } = useSelectionRect({
         stageRef,
@@ -82,31 +86,39 @@ export function Workspace({
         selectLayer: onSelectLayer,
     });
 
-    useEffect(() => {
-        const stage = stageRef.current;
-        if (!stage || !penHandlers) return;
-        stage.on('mousedown.drawing', penHandlers.onMouseDown);
-        stage.on('mousemove.drawing', penHandlers.onMouseMove);
-        stage.on('mouseup.drawing', penHandlers.onMouseUp);
-        return () => {
-            stage.off('mousedown.drawing');
-            stage.off('mousemove.drawing');
-            stage.off('mouseup.drawing');
-        };
-    }, [stageRef, penHandlers]);
+    // Единый обработчик событий stage
+    const handleStageMouseDown = useCallback((e: Konva.KonvaEventObject<MouseEvent>) => {
+        panMouseDown?.(e);
 
-    useEffect(() => {
-        const stage = stageRef.current;
-        if (!stage || !cropHandlers || (selectedTool !== 'cropRect' && selectedTool !== 'cropFree')) return;
-        stage.on('mousedown.crop', cropHandlers.onMouseDown);
-        stage.on('mousemove.crop', cropHandlers.onMouseMove);
-        stage.on('mouseup.crop', cropHandlers.onMouseUp);
-        return () => {
-            stage.off('mousedown.crop');
-            stage.off('mousemove.crop');
-            stage.off('mouseup.crop');
-        };
-    }, [stageRef, cropHandlers, selectedTool]);
+        if (selectedTool === 'pen' || selectedTool === 'eraser') {
+            penHandlers?.onMouseDown();
+        }
+        if (selectedTool === 'cropRect' || selectedTool === 'cropFree') {
+            cropHandlers?.onMouseDown();
+        }
+    }, [selectedTool, penHandlers, cropHandlers, panMouseDown]);
+
+    const handleStageMouseMove = useCallback((e: Konva.KonvaEventObject<MouseEvent>) => {
+        panMouseMove?.(e);
+
+        if (selectedTool === 'pen' || selectedTool === 'eraser') {
+            penHandlers?.onMouseMove();
+        }
+        if (selectedTool === 'cropRect' || selectedTool === 'cropFree') {
+            cropHandlers?.onMouseMove();
+        }
+    }, [selectedTool, penHandlers, cropHandlers, panMouseMove]);
+
+    const handleStageMouseUp = useCallback(() => {
+        panMouseUp?.();
+
+        if (selectedTool === 'pen' || selectedTool === 'eraser') {
+            penHandlers?.onMouseUp();
+        }
+        if (selectedTool === 'cropRect' || selectedTool === 'cropFree') {
+            cropHandlers?.onMouseUp();
+        }
+    }, [selectedTool, penHandlers, cropHandlers, panMouseUp]);
 
     const handleDragEnd = useCallback(
         (layerId: string, x: number, y: number) => {
@@ -138,6 +150,9 @@ export function Workspace({
                 width={stageSize.width}
                 height={stageSize.height}
                 className={stageClass}
+                onMouseDown={handleStageMouseDown}
+                onMouseMove={handleStageMouseMove}
+                onMouseUp={handleStageMouseUp}
             >
                 <KonvaLayer>
                     {layers.map((layer) => (
