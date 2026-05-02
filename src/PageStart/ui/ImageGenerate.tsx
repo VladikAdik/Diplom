@@ -1,180 +1,233 @@
-import { useState } from 'react';
-import axios from 'axios';
-import FormData from "form-data";
+import { useState, useEffect } from 'react';
+import { ImageGenerationService } from '../api/generateService';
+import { ASPECT_RATIO_SIZES, type AspectRatio } from '../api/types';
+import { API_MODELS, type ModelId } from '../api/models';
+import styles from './ImageGenerate.module.css';
 
-export function ImageGenerator() {
-  const [prompt, setPrompt] = useState('');
-  const [isLoading, setIsLoading] = useState(false);
-  const [generatedImage, setGeneratedImage] = useState<string | null>(null);
-  const [error, setError] = useState('');
-  const [ratio, setRatio] = useState('1:1')
-  const apiSD = "https://diplom-backend-sd.cloudpub.ru";
-  const apiLum = "https://diplom-backend-lum.cloudpub.ru";
-  const apiSd3 = "https://api.stability.ai/v2beta/stable-image/generate/sd3";
-  let height: number;
-  let width: number;
-  const [modelUrl, setModel] = useState(apiSD);
-  const handlePromptChange = (event: React.ChangeEvent<HTMLTextAreaElement>): void => {
-    setPrompt(event.target.value);
-    setError(''); // Очищаем ошибку при вводе
-  };
+interface ImageGeneratorProps {
+    onImageLoad: (image: HTMLImageElement) => void;
+}
 
-  const handleGenerate = async () => {
-    if (!prompt.trim()) {
-      setError('Пожалуйста, введите промпт');
-      return;
+const generationService = new ImageGenerationService();
+
+export function ImageGenerator({ onImageLoad }: ImageGeneratorProps) {
+    const [prompt, setPrompt] = useState('');
+    const [isLoading, setIsLoading] = useState(false);
+    const [generatedImage, setGeneratedImage] = useState<string | null>(null);
+    const [error, setError] = useState('');
+    const [ratio, setRatio] = useState<AspectRatio>('1:1');
+    const [modelId, setModelId] = useState<ModelId>('local-sd');
+    const [showApiKeyInput, setShowApiKeyInput] = useState(false);
+    const [apiKey, setApiKey] = useState('');
+
+    useEffect(() => {
+        const model = API_MODELS[modelId];
+        if (model.requiresApiKey) {
+            const existingKey = generationService.getApiKey(modelId);
+            if (existingKey) {
+                setApiKey(existingKey);
+                setShowApiKeyInput(false);
+            } else {
+                setApiKey('');
+                setShowApiKeyInput(true);
+            }
+        } else {
+            setShowApiKeyInput(false);
+        }
+    }, [modelId]);
+
+    const handleModelChange = (newModelId: ModelId) => {
+        setModelId(newModelId);
+        setGeneratedImage(null);
+    };
+
+    const handleApiKeySubmit = () => {
+        if (apiKey.trim()) {
+            generationService.setApiKey(modelId, apiKey.trim());
+            setShowApiKeyInput(false);
+        }
+    };
+
+    const handlePromptChange = (event: React.ChangeEvent<HTMLTextAreaElement>): void => {
+        setPrompt(event.target.value);
+        setError('');
+    };
+
+    const handleGenerate = async () => {
+        if (!prompt.trim()) {
+            setError('Пожалуйста, введите промпт');
+            return;
+        }
+
+        const model = API_MODELS[modelId];
+        if (model.requiresApiKey && !generationService.getApiKey(modelId)) {
+            setShowApiKeyInput(true);
+            setError('Необходимо указать API ключ');
+            return;
+        }
+
+        setIsLoading(true);
+        setError('');
+
+        try {
+            const result = await generationService.generate(
+                {
+                    prompt: prompt,
+                    negativePrompt: '',
+                    aspectRatio: ratio,
+                    steps: 20,
+                    guidanceScale: 7.5
+                },
+                modelId
+            );
+
+            setGeneratedImage(result.imageUrl);
+        } catch (err) {
+            const errorMessage = err instanceof Error ? err.message : 'Произошла неизвестная ошибка';
+            setError(errorMessage);
+            console.error('Ошибка при генерации:', err);
+        } finally {
+            setIsLoading(false);
+        }
+    };
+
+    const handleCancel = () => {
+        generationService.cancelGeneration();
+        setIsLoading(false);
+    };
+
+    const handleKeyDown = (event: React.KeyboardEvent<HTMLTextAreaElement>): void => {
+        if ((event.ctrlKey || event.metaKey) && event.key === 'Enter') {
+            handleGenerate();
+        }
+    };
+
+    const handleImageClick = () => {
+        if (generatedImage) {
+            const img = new window.Image();
+            img.crossOrigin = 'anonymous';
+            img.onload = () => onImageLoad(img);
+            img.onerror = () => {
+                // Если CORS не поддерживается сервером — пробуем без него
+                const fallbackImg = new window.Image();
+                fallbackImg.onload = () => onImageLoad(fallbackImg);
+                fallbackImg.src = generatedImage;
+            };
+            img.src = generatedImage;
+        }
+    };
+
+    const handleSaveImage = () => {
+        if (!generatedImage) return;
+
+        const link = document.createElement('a');
+        link.href = generatedImage;
+        link.download = `generated-${Date.now()}.png`;
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
+    };
+
+    if (showApiKeyInput) {
+        return (
+            <div className={styles.apiKeyOverlay}>
+                <div className={styles.apiKeyModal}>
+                    <h3 className={styles.apiKeyTitle}>API ключ</h3>
+                    <p className={styles.apiKeySubtitle}>
+                        Для использования {API_MODELS[modelId].name} необходим API ключ.
+                        Вы можете пропустить этот шаг и вернуться позже.
+                    </p>
+                    <input
+                        type="password"
+                        className={styles.apiKeyInput}
+                        value={apiKey}
+                        onChange={(e) => setApiKey(e.target.value)}
+                        placeholder="Введите API ключ"
+                        onKeyDown={(e) => e.key === 'Enter' && handleApiKeySubmit()}
+                        autoFocus
+                    />
+                    <div className={styles.apiKeyButtons}>
+                        <button className={styles.saveBtn} onClick={handleApiKeySubmit}>
+                            Сохранить
+                        </button>
+                        <button className={styles.skipBtn} onClick={() => setShowApiKeyInput(false)}>
+                            Пропустить
+                        </button>
+                    </div>
+                </div>
+            </div>
+        );
     }
-    switch (ratio) {
-      case '1:1':
-        height = 512;
-        width = 512;
-        break;
-      case '16:9':
-        height = 512;
-        width = 912;
-        break;
-      case '9:16':
-        height = 912;
-        width = 512;
-        break;
-    }
-    setIsLoading(true);
-    setError('');
-    try {
-      const requestData = {
-        prompt: prompt,
-        "negative_prompt": "",
-        "height": height,
-        "width": width,
-        "steps": 20,
-        "guidance_scale": 7.5
-      };
-      
-      const response = await fetch(modelUrl + "/generate", {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify(requestData),
-      });
 
-      if (!response.ok) {
-        throw new Error(`Ошибка сервера: ${response.status}`);
-      }
+    return (
+        <div className={styles.container}>
+            <div className={styles.promptSection}>
+                <textarea
+                    className={styles.textarea}
+                    value={prompt}
+                    onChange={handlePromptChange}
+                    onKeyDown={handleKeyDown}
+                    placeholder="Введите описание изображения... Например: 'Кот в космосе в стиле киберпанк'"
+                    rows={4}
+                    disabled={isLoading}
+                />
 
-      const data = await response.json();
-      const imUrl = modelUrl + data.url;
-      setGeneratedImage(imUrl); // предполагаем, что сервер возвращает URL изображения
+                <div className={styles.buttonRow}>
+                    <button className={styles.generateBtn} onClick={handleGenerate} disabled={isLoading || !prompt.trim()}>
+                        {isLoading ? 'Генерация...' : 'Сгенерировать'}
+                    </button>
 
-    } catch (err) {
-      const errorMessage = err instanceof Error ? err.message : 'Произошла неизвестная ошибка';
-      setError(errorMessage);
-      console.error('Ошибка при генерации:', err);
-    } finally {
-      setIsLoading(false);
-    }
-  };
+                    {isLoading && (
+                        <button className={styles.cancelBtn} onClick={handleCancel}>
+                            Отменить
+                        </button>
+                    )}
+                </div>
+            </div>
 
-  const handleGenerateCloud = async () => {
-    if (!prompt.trim()) {
-      setError('Пожалуйста, введите промпт');
-      return;
-    }
-    setIsLoading(true);
-    setError('');
-    try {
-      const requestData = {
-        prompt: prompt, // Текстовое описание
-        "negative_prompt": "",
-        "aspect_ratio": ratio,
-        "model": "sd3.5-flash"
-      };
-      const response = await axios.postForm(modelUrl, axios.toFormData(requestData, new FormData()), {
-        headers: {
-          Authorization: `Bearer sk-m1NS0X6wv8yGnWJv2WXiVCVVcAsF0YFS8mifJtmJb9le0oYp`, //sk-nwCTKQpjrSM08sob4ykrsMCIZypJlWHAJxdaad14nk2u9vJj sk-m1NS0X6wv8yGnWJv2WXiVCVVcAsF0YFS8mifJtmJb9le0oYp
-          Accept: "application/json"
-        },
-      }
-      );
-      const imageBase64 = response.data.image;
-      setGeneratedImage(imageBase64); // предполагаем, что сервер возвращает URL изображения
+            {error && (
+                <div className={styles.errorBox}>
+                    ❌ {error}
+                </div>
+            )}
 
-    } catch (err) {
-      const errorMessage = err instanceof Error ? err.message : 'Произошла неизвестная ошибка';
-      setError(errorMessage);
-      console.error('Ошибка при генерации:', err);
-    } finally {
-      setIsLoading(false);
-    }
-  };
+            <div className={styles.settingsRow}>
+                <select className={styles.select} value={modelId} onChange={(e) => handleModelChange(e.target.value as ModelId)}>
+                    {Object.entries(API_MODELS).map(([id, config]) => (
+                        <option key={id} value={id}>
+                            {config.name}
+                        </option>
+                    ))}
+                </select>
 
-  const handleKeyPress = (event: React.KeyboardEvent<HTMLTextAreaElement>): void => {
-    // Отправка по Ctrl+Enter или Cmd+Enter
-    if ((event.ctrlKey || event.metaKey) && event.key === 'Enter') {
-      modelUrl === apiSd3 ? handleGenerateCloud : handleGenerate;
-    }
-  };
+                <select className={styles.select} value={ratio} onChange={(e) => setRatio(e.target.value as AspectRatio)}>
+                    {Object.keys(ASPECT_RATIO_SIZES).map((r) => (
+                        <option key={r} value={r}>
+                            {r}
+                        </option>
+                    ))}
+                </select>
+            </div>
 
-  const models = [
-    { value: apiSD, label: 'Stable-diffusion-1.5' },
-    { value: apiLum, label: 'Lumina' },
-    { value: apiSd3, label: 'Stable-diffusion-3.5' },
-  ];
-
-  const aspect = [
-    { value: '1:1', label: '1:1' },
-    { value: '16:9', label: '16:9' },
-    { value: '9:16', label: '9:16' },
-  ];
-
-  return (
-    <div>
-      <div>
-        <textarea
-          value={prompt}
-          onChange={handlePromptChange}
-          onKeyPress={handleKeyPress}
-          placeholder="Введите описание изображения... Например: 'Кот в космосе в стиле киберпанк'"
-          rows={4}
-          disabled={isLoading}
-        />
-
-        <button
-          onClick={modelUrl === apiSd3 ? handleGenerateCloud : handleGenerate}
-          disabled={isLoading || !prompt.trim()}
-        >
-          {isLoading ? 'Генерация...' : 'Сгенерировать'}
-        </button>
-      </div>
-
-      {error && (
-        <div>
-          ❌ {error}
+            {generatedImage && (
+                <div className={styles.resultSection}>
+                    <h3 className={styles.resultTitle}>Результат генерации</h3>
+                    <img
+                        className={styles.resultImage}
+                        src={generatedImage}
+                        alt="Сгенерированное изображение"
+                        onClick={handleImageClick}
+                    />
+                    <div className={styles.resultActions}>
+                        <button className={styles.saveBtn} onClick={handleSaveImage}>
+                            💾 Сохранить
+                        </button>
+                        <button className={styles.editBtn} onClick={handleImageClick}>
+                            ✏️ Редактировать
+                        </button>
+                    </div>
+                </div>
+            )}
         </div>
-      )}
-      <select value={modelUrl} onChange={(e) => setModel(e.target.value)}>
-        {models.map((opt) => (
-          <option key={opt.value} value={opt.value}>
-            {opt.label}
-          </option>
-        ))}
-      </select>
-      <select value={ratio} onChange={(e) => setRatio(e.target.value)}>
-        {aspect.map((opt) => (
-          <option key={opt.value} value={opt.value}>
-            {opt.label}
-          </option>
-        ))}
-      </select>
-      {generatedImage && (
-        <div>
-          <h3>Результат генерации:</h3>
-          <img
-            src={generatedImage}
-            alt="Сгенерированное изображение"
-          />
-        </div>
-      )}
-    </div>
-  );
-};
+    );
+}

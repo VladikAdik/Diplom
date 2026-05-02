@@ -1,115 +1,105 @@
 import { useState, useRef } from 'react';
 import Konva from 'konva';
-import { Stage, Layer, Rect, Text } from 'react-konva';
+import { Stage, Layer, Rect } from 'react-konva';
+import styles from './ImageUpload.module.css';
 
 interface ImageUploaderProps {
-    onImageLoad: (image: HTMLImageElement) => void;  // Передаёт изображение родителю
-    onImageRemove?: () => void;
+  onImageLoad: (image: HTMLImageElement) => void;
 }
 
 export function ImageUploader({ onImageLoad }: ImageUploaderProps) {
-  const [isDragOver, setIsDragOver] = useState(false)
-  const stageRef = useRef<Konva.Stage>(null)
+  const [isDragOver, setIsDragOver] = useState(false);
+  const stageRef = useRef<Konva.Stage>(null);
 
-  // Загрузка изображения из файла
   const loadImage = (file: File) => {
-    if (!file || !file.type.startsWith('image/')) return
-    
-    const reader = new FileReader()
+    if (!file || !file.type.startsWith('image/')) return;
+
+    const reader = new FileReader();
     reader.onload = (e) => {
-      const img = new window.Image()
+      const img = new window.Image();
       img.onload = () => {
-        onImageLoad(img)
-      }
-      img.src = e.target?.result as string 
-    }
-    reader.readAsDataURL(file)
-  }
+        onImageLoad(img);
+      };
+      img.src = e.target?.result as string;
+    };
+    reader.readAsDataURL(file);
+  };
 
-  // Обработка клика по области
   const handleStageClick = () => {
-    const input = document.createElement('input')
-    input.type = 'file'
-    input.accept = 'image/*'
+    const input = document.createElement('input');
+    input.type = 'file';
+    input.accept = 'image/*';
     input.onchange = (event: Event) => {
-        const target = event.target as HTMLInputElement;
-        const file = target.files?.[0];
-        if (file) {
-            loadImage(file);
-        }
-    }
-    input.click()
-  }
+      const target = event.target as HTMLInputElement;
+      const file = target.files?.[0];
+      if (file) {
+        loadImage(file);
+      }
+    };
+    input.click();
+  };
 
-  // Drag & Drop обработчики
   const handleDragOver = (e: React.DragEvent<HTMLDivElement>) => {
-    e.preventDefault()
-    setIsDragOver(true)
+    e.preventDefault();
+    setIsDragOver(true);
   };
 
   const handleDragLeave = (e: React.DragEvent<HTMLDivElement>) => {
-    e.preventDefault()
-    setIsDragOver(false)
-  }
+    e.preventDefault();
+    setIsDragOver(false);
+  };
 
   const handleDrop = (e: React.DragEvent<HTMLDivElement>) => {
-    e.preventDefault()
-    setIsDragOver(false)
-    
-    const file = e.dataTransfer.files[0]
-    if (file && file.type.startsWith('image/')) {
-      loadImage(file)
-    }
-  }
+    e.preventDefault();
+    setIsDragOver(false);
 
-  const stageSizeWidth = 900
-  const stageSizeHeight = 500
+    const file = e.dataTransfer.files[0];
+    if (file && file.type.startsWith('image/')) {
+      loadImage(file);
+    }
+  };
+
+  const stageWidth = 600;
+  const stageHeight = 200;
+
   return (
+    <div className={styles.container}>
       <div
+        className={`${styles.dropZone} ${isDragOver ? styles.dragOver : ''}`}
         onDragOver={handleDragOver}
         onDragLeave={handleDragLeave}
         onDrop={handleDrop}
-        style={{
-          position: 'relative',
-          border: `3px dashed ${isDragOver ? '#4CAF50' : '#ccc'}`,
-          borderRadius: '10px',
-          background: isDragOver ? '#e8f5e9' : 'white',
-          transition: 'all 0.3s ease'
-        }}>
+      >
+        <div className={styles.overlay}>
+          <div className={styles.icon}>
+            {isDragOver ? '🎨' : '📸'}
+          </div>
+          <h3 className={styles.title}>
+            {isDragOver ? 'Отпустите, чтобы загрузить' : 'Загрузите изображение'}
+          </h3>
+          <p className={styles.subtitle}>
+            Нажмите или перетащите файл • PNG, JPG, WebP
+          </p>
+        </div>
 
-        <Stage 
+        <Stage
           ref={stageRef}
-          width={stageSizeWidth} 
-          height={stageSizeHeight} 
-          style={{ 
-            background: '#fafafa', 
-            borderRadius: '8px', 
-            display: 'block',
-            cursor: 'pointer' // Меняем курсор на указатель
-          }}
-          onClick={handleStageClick} // Обработчик клика
+          width={stageWidth}
+          height={stageHeight}
+          className={styles.stage}
+          onClick={handleStageClick}
         >
           <Layer>
             <Rect
               x={0}
               y={0}
-              width={stageSizeWidth}
-              height={stageSizeHeight}
-              fill={isDragOver ? '#e8f5e9' : '#fafafa'}
-            />
-            
-            <Text
-                text={'📸 Нажмите или перетащите изображение сюда'}
-                fontSize={18}
-                fontFamily="Arial"
-                fill="#999"
-                align="center"
-                verticalAlign="middle"
-                width={stageSizeWidth}
-                height={stageSizeHeight}
+              width={stageWidth}
+              height={stageHeight}
+              fill="transparent"
             />
           </Layer>
         </Stage>
       </div>
+    </div>
   );
 }

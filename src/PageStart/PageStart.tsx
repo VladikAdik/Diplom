@@ -9,10 +9,10 @@ interface PageStartProps {
 
 export function PageStart({ onImageLoad }: PageStartProps) {
 
-  return <div>
-    <PanelDisclamer />
-    <ImageUploader onImageLoad={onImageLoad}/>
-    <GeneratorDisclamer />
-    <ImageGenerator />
-  </div>
+    return <div>
+        <PanelDisclamer />
+        <ImageUploader onImageLoad={onImageLoad} />
+        <GeneratorDisclamer />
+        <ImageGenerator onImageLoad={onImageLoad}/>
+    </div>
 }

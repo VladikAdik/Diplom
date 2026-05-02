@@ -1,0 +1,80 @@
+.container {
+  max-width: 600px;
+  margin: 0 auto 24px;
+}
+
+.dropZone {
+  position: relative;
+  border: 2px dashed #d4d4d4;
+  border-radius: 16px;
+  background: #fafafa;
+  transition: all 0.3s ease;
+  overflow: hidden;
+  cursor: pointer;
+}
+
+.dropZone:hover {
+  border-color: #a78bfa;
+  background: #f9f7ff;
+}
+
+.dropZone.dragOver {
+  border-color: #7c3aed;
+  background: #ede9fe;
+  border-width: 3px;
+  transform: scale(1.01);
+}
+
+.stage {
+  display: block;
+  border-radius: 14px;
+  cursor: pointer;
+}
+
+.overlay {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  pointer-events: none;
+  z-index: 1;
+}
+
+.icon {
+  font-size: 40px;
+  margin-bottom: 12px;
+  opacity: 0.6;
+  transition: transform 0.3s ease;
+}
+
+.dropZone:hover .icon {
+  transform: translateY(-4px);
+  opacity: 0.8;
+}
+
+.dragOver .icon {
+  transform: translateY(-8px) scale(1.1);
+  opacity: 1;
+}
+
+.title {
+  font-size: 18px;
+  font-weight: 600;
+  color: #666;
+  margin: 0 0 6px 0;
+  transition: color 0.2s;
+}
+
+.dropZone:hover .title {
+  color: #7c3aed;
+}
+
+.subtitle {
+  font-size: 13px;
+  color: #999;
+  margin: 0;
+}
+
+/* Стили для Konva-текста убираем, заменяем HTML-оверлеем */
