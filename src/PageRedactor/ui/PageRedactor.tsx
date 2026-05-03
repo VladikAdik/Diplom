@@ -53,7 +53,7 @@ export function PageRedactor({ image }: PageRedactorProps) {
         cancelPreview,
         copyToClipboard,
         pasteFromClipboard,
-        reorderLayers, 
+        reorderLayers,
     } = useLayers();
 
     const getContentCenter = useCallback(() => {
@@ -106,34 +106,6 @@ export function PageRedactor({ image }: PageRedactorProps) {
         }
     }, [image, addImageLayer, fitToContent]);
 
-    // Горячие клавиши
-    useEffect(() => {
-        const handleKeyDown = (e: KeyboardEvent) => {
-            if (e.target instanceof HTMLInputElement || e.target instanceof HTMLTextAreaElement) return;
-
-            if ((e.ctrlKey || e.metaKey) && e.code === 'KeyA') { e.preventDefault(); selectAll(); return; }
-            if ((e.ctrlKey || e.metaKey) && e.code === 'KeyZ' && !e.shiftKey) { e.preventDefault(); undo(); return; }
-            if ((e.ctrlKey || e.metaKey) && (e.code === 'KeyY' || (e.code === 'KeyZ' && e.shiftKey))) { e.preventDefault(); redo(); return; }
-            if (e.code === 'Delete' || e.code === 'Backspace') { e.preventDefault(); selectedLayerIds.forEach(id => removeLayer(id)); return; }
-            if (e.code === 'Escape') { e.preventDefault(); clearSelection(); return; }
-            if (e.code === 'KeyV') { setSelectedTool('select'); return; }
-            if (e.code === 'KeyP') { setSelectedTool('pen'); return; }
-            if (e.code === 'KeyE') { setSelectedTool('eraser'); return; }
-            if ((e.ctrlKey || e.metaKey) && e.code === 'KeyC') {
-                e.preventDefault();
-                copyToClipboard(selectedLayerIds);
-                return;
-            }
-            if ((e.ctrlKey || e.metaKey) && e.code === 'KeyV') {
-                e.preventDefault();
-                pasteFromClipboard();
-                return;
-            }
-        };
-
-        window.addEventListener('keydown', handleKeyDown);
-        return () => window.removeEventListener('keydown', handleKeyDown);
-    }, [undo, redo, selectAll, clearSelection, selectedLayerIds, removeLayer, copyToClipboard, pasteFromClipboard]);
 
     // ✅ Загрузка изображения — в центр вьюпорта
     const handleLoadImage = useCallback(() => {
@@ -265,6 +237,37 @@ export function PageRedactor({ image }: PageRedactorProps) {
     useEffect(() => {
         updatePreviewImage();
     }, [layers, updatePreviewImage]);
+
+    // Горячие клавиши
+    useEffect(() => {
+        const handleKeyDown = (e: KeyboardEvent) => {
+            if (e.target instanceof HTMLInputElement || e.target instanceof HTMLTextAreaElement) return;
+
+            // Ctrl-комбинации
+            if ((e.ctrlKey || e.metaKey) && e.code === 'KeyA') { e.preventDefault(); selectAll(); return; }
+            if ((e.ctrlKey || e.metaKey) && e.code === 'KeyZ' && !e.shiftKey) { e.preventDefault(); undo(); return; }
+            if ((e.ctrlKey || e.metaKey) && (e.code === 'KeyY' || (e.code === 'KeyZ' && e.shiftKey))) { e.preventDefault(); redo(); return; }
+            if ((e.ctrlKey || e.metaKey) && e.code === 'KeyC') { e.preventDefault(); copyToClipboard(selectedLayerIds); return; }
+            if ((e.ctrlKey || e.metaKey) && e.code === 'KeyV') { e.preventDefault(); pasteFromClipboard(); return; }
+
+            // Инструменты по Ctrl + цифра
+            if ((e.ctrlKey || e.metaKey) && e.code === 'Digit1') { e.preventDefault(); setSelectedTool('select'); return; }
+            if ((e.ctrlKey || e.metaKey) && e.code === 'Digit2') { e.preventDefault(); setSelectedTool('pen'); return; }
+            if ((e.ctrlKey || e.metaKey) && e.code === 'Digit3') { e.preventDefault(); setSelectedTool('eraser'); return; }
+            if ((e.ctrlKey || e.metaKey) && e.code === 'Digit4') { e.preventDefault(); setSelectedTool('filter'); return; }
+            if ((e.ctrlKey || e.metaKey) && e.code === 'Digit5') { e.preventDefault(); setSelectedTool('shape'); return; }
+            if ((e.ctrlKey || e.metaKey) && e.code === 'Digit6') { e.preventDefault(); setSelectedTool('text'); return; }
+            if ((e.ctrlKey || e.metaKey) && e.code === 'Digit7') { e.preventDefault(); handleStartCrop('rect'); return; }
+            if ((e.ctrlKey || e.metaKey) && e.code === 'Digit8') { e.preventDefault(); handleStartCrop('free'); return; }
+
+            // Одиночные клавиши (без Ctrl)
+            if (e.code === 'Delete' || e.code === 'Backspace') { e.preventDefault(); selectedLayerIds.forEach(id => removeLayer(id)); return; }
+            if (e.code === 'Escape') { e.preventDefault(); clearSelection(); return; }
+        };
+
+        window.addEventListener('keydown', handleKeyDown);
+        return () => window.removeEventListener('keydown', handleKeyDown);
+    }, [undo, redo, selectAll, clearSelection, selectedLayerIds, removeLayer, copyToClipboard, pasteFromClipboard, handleStartCrop]);
 
     return (
         <div>

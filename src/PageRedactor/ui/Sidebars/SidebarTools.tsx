@@ -149,28 +149,28 @@ export function SidebarTools({
             <div className={styles.toolsRow}>
                 <button onClick={() => handleToolClick('select')}
                     className={`${styles.toolBtn} ${selectedTool === 'select' ? styles.toolBtnActive : ''}`}
-                    title="Выделение (V)">🖱️</button>
+                    title="Выделение (Ctrl+1)">🖱️</button>
                 <button onClick={() => handleToolClick('pen')}
                     className={`${styles.toolBtn} ${selectedTool === 'pen' ? styles.toolBtnActive : ''}`}
-                    title="Кисть (P)">✏️</button>
+                    title="Кисть (Ctrl+2)">✏️</button>
                 <button onClick={() => handleToolClick('eraser')}
                     className={`${styles.toolBtn} ${selectedTool === 'eraser' ? styles.toolBtnActive : ''}`}
-                    title="Ластик (E)">🧽</button>
+                    title="Ластик (Ctrl+3)">🧽</button>
                 <button onClick={() => handleToolClick('filter')}
                     className={`${styles.toolBtn} ${selectedTool === 'filter' ? styles.toolBtnActive : ''}`}
-                    title="Фильтры (F)">🎨</button>
+                    title="Фильтры (Ctrl+4)">🎨</button>
                 <button onClick={() => onStartCrop?.('rect')}
                     className={`${styles.toolBtn} ${selectedTool === 'cropRect' ? styles.toolBtnActive : ''}`}
-                    title="Вырезать прямоугольником (R)">✂️🔲</button>
+                    title="Вырезать прямоугольником (Ctrl+7)">✂️🔲</button>
                 <button onClick={() => onStartCrop?.('free')}
                     className={`${styles.toolBtn} ${selectedTool === 'cropFree' ? styles.toolBtnActive : ''}`}
-                    title="Вырезать произвольно (O)">✂️✏️</button>
+                    title="Вырезать произвольно (Ctrl+8)">✂️✏️</button>
                 <button onClick={() => handleToolClick('shape')}
                     className={`${styles.toolBtn} ${selectedTool === 'shape' ? styles.toolBtnActive : ''}`}
-                    title="Добавить фигуру">⬛</button>
+                    title="Добавить фигуру (Ctrl+5)">⬛</button>
                 <button onClick={() => handleToolClick('text')}
                     className={`${styles.toolBtn} ${selectedTool === 'text' ? styles.toolBtnActive : ''}`}
-                    title="Добавить текст (T)">📝</button>
+                    title="Добавить текст (Ctrl+6)">📝</button>
 
                 {isCropping && (
                     <div className={styles.cropActions}>
