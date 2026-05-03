@@ -11,12 +11,12 @@ export function useWorkspaceLogic({ onUpdate, stageRef }: WorkspaceLogicProps) {
     const containerRef = useRef<HTMLDivElement>(null);
     const [scale, setScale] = useState(1);
     const [stagePos, setStagePos] = useState({ x: 0, y: 0 });
+    const [stageSize, setStageSize] = useState({ width: 800, height: 600 });
     const isPanning = useRef(false);
     const lastPanPos = useRef({ x: 0, y: 0 });
     const spacePressed = useRef(false);
-    const [stageSize, setStageSize] = useState({ width: 800, height: 600 });
 
-    // === Отслеживаем размер контейнера ===
+    // === Размер контейнера ===
     useEffect(() => {
         const container = containerRef.current;
         if (!container) return;
@@ -101,21 +101,20 @@ export function useWorkspaceLogic({ onUpdate, stageRef }: WorkspaceLogicProps) {
         setStagePos({ x: newX, y: newY });
     }, [stageRef]);
 
-    // === Панорамирование (колёсико или пробел+левая) ===
+    // === Панорамирование ===
     const handleMouseDown = useCallback((e: Konva.KonvaEventObject<MouseEvent>) => {
+        // Средняя кнопка — панорамирование
         if (e.evt.button === 1) {
             isPanning.current = true;
             lastPanPos.current = { x: e.evt.clientX, y: e.evt.clientY };
-            e.evt.preventDefault();
-            e.cancelBubble = true; // ✅ блокируем всплытие, чтобы инструменты не сработали
+            e.cancelBubble = true;
             return;
         }
 
-        // Пробел + левая кнопка
+        // Пробел + левая кнопка — панорамирование
         if (spacePressed.current && e.evt.button === 0) {
             isPanning.current = true;
             lastPanPos.current = { x: e.evt.clientX, y: e.evt.clientY };
-            e.evt.preventDefault();
             e.cancelBubble = true;
             return;
         }
@@ -130,20 +129,32 @@ export function useWorkspaceLogic({ onUpdate, stageRef }: WorkspaceLogicProps) {
         const dx = e.evt.clientX - lastPanPos.current.x;
         const dy = e.evt.clientY - lastPanPos.current.y;
 
-        const newX = stage.x() + dx;
-        const newY = stage.y() + dy;
-
-        // Убираем мягкое ограничение — бесконечный холст
-        stage.position({ x: newX, y: newY });
+        stage.position({ x: stage.x() + dx, y: stage.y() + dy });
         stage.batchDraw();
 
         lastPanPos.current = { x: e.evt.clientX, y: e.evt.clientY };
-        setStagePos({ x: newX, y: newY });
+        setStagePos({ x: stage.x(), y: stage.y() });
     }, [stageRef]);
 
     const handleMouseUp = useCallback(() => {
         isPanning.current = false;
     }, []);
+
+    // === Навешиваем pan на Stage ===
+    useEffect(() => {
+        const stage = stageRef.current;
+        if (!stage) return;
+
+        stage.on('mousedown', handleMouseDown);
+        stage.on('mousemove', handleMouseMove);
+        stage.on('mouseup', handleMouseUp);
+
+        return () => {
+            stage.off('mousedown', handleMouseDown);
+            stage.off('mousemove', handleMouseMove);
+            stage.off('mouseup', handleMouseUp);
+        };
+    }, [stageRef, handleMouseDown, handleMouseMove, handleMouseUp]);
 
     // === Навешиваем wheel на контейнер ===
     useEffect(() => {
@@ -175,8 +186,5 @@ export function useWorkspaceLogic({ onUpdate, stageRef }: WorkspaceLogicProps) {
         stageSize,
         resetView,
         updatePreview,
-        handleMouseDown,
-        handleMouseMove,
-        handleMouseUp,
     };
 }
