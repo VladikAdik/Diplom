@@ -6,7 +6,6 @@ import { toSnapshot, fromSnapshot } from './layerToHistory';
 import { useLayerSelection } from './useLayerSelection';
 import { useLayerPosition } from './useLayerPosition';
 import { useHistory } from '../workspace';
-import { useSnapMove, type SnapGuide } from '../interaction';
 import { useFilters } from '../tools';
 import { getContentBounds } from '../../utils/getContentBounds';
 import { flushSync } from 'react-dom';
@@ -15,7 +14,6 @@ export function useLayers() {
     const [layers, setLayers] = useState<Layer[]>([]);
     const layerRefs = useRef<Map<string, Konva.Group>>(new Map());
     const clipboardRef = useRef<Layer[] | null>(null);
-    const [snapGuides, setSnapGuides] = useState<SnapGuide[]>([]);
 
     const { saveState, undo: undoHistory, redo: redoHistory, canUndo, canRedo, clearHistory } = useHistory();
     const { selectedIds, setSelectedIds, selectLayer, clearSelection, selectAll, removeFromSelection } = useLayerSelection();
@@ -143,22 +141,23 @@ export function useLayers() {
             runtime: {},
         };
 
-        mutate(prev => {
-            const updated = [...prev, { ...newLayer, id: newId, zIndex: prev.length }];
-            // Колбэк для выделения после обновления состояния
-            queueMicrotask(() => selectLayer(newId));
-            return updated;
-        });
+        mutate(prev => [
+            ...prev,
+            { ...newLayer, id: newId, zIndex: prev.length }
+        ]);
+
+        // ✅ Выделяем после обновления состояния
+        setTimeout(() => selectLayer(newId), 0);
     }, [mutate, selectLayer, layers]);
 
     const reorderLayers = useCallback((newOrder: Layer[]) => {
-    mutate(() => 
-        newOrder.map((layer, index) => ({
-            ...layer,
-            zIndex: index,
-        }))
-    );
-}, [mutate]);
+        mutate(() =>
+            newOrder.map((layer, index) => ({
+                ...layer,
+                zIndex: index,
+            }))
+        );
+    }, [mutate]);
 
     const recreateRuntime = (data: LayerData): LayerRuntime | undefined => {
         const src = (data as { src?: string }).src;
@@ -218,7 +217,6 @@ export function useLayers() {
     }, [layers, mutate, selectLayer]);
 
 
-
     // ============================================================
     // Операции без сохранения в историю
     // ============================================================
@@ -260,12 +258,19 @@ export function useLayers() {
         [mutate]
     );
 
-    const { handleDragMove, handleDragEnd } = useSnapMove({
-        layers,
-        stageSize: { width: 10000, height: 10000 },
-        setSnapGuides,
-        onPositionChange: handlePositionChange,
-    });
+    const handleDragMove = useCallback(
+        (id: string, x: number, y: number) => {
+            handlePositionChange(id, x, y, false);
+        },
+        [handlePositionChange]
+    );
+
+    const handleDragEnd = useCallback(
+        (id: string, x: number, y: number) => {
+            handlePositionChange(id, x, y, true);
+        },
+        [handlePositionChange]
+    );
 
     // ============================================================
     // Undo / Redo
@@ -322,7 +327,6 @@ export function useLayers() {
         pasteFromClipboard,
         reorderLayers,
 
-        snapGuides,
         handleDragMove,
         handleDragEnd,
 

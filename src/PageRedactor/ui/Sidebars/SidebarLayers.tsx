@@ -81,7 +81,7 @@ export function SidebarLayers({
     previewUrl,
     onReorderLayers,
 }: SidebarLayersProps) {
-
+    
     const [dragIndex, setDragIndex] = useState<number | null>(null);
     const [overIndex, setOverIndex] = useState<number | null>(null);
 
@@ -164,7 +164,6 @@ export function SidebarLayers({
                         .sort((a, b) => a.zIndex - b.zIndex)
                         .map((layer, index) => (
                             <div
-                                key={layer.id}
                                 draggable
                                 onDragStart={(e) => handleDragStart(e, index)}
                                 onDragOver={(e) => handleDragOver(e, index)}

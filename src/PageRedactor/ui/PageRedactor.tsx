@@ -46,14 +46,13 @@ export function PageRedactor({ image }: PageRedactorProps) {
         clearAll,
         handleDragMove,
         handleDragEnd,
-        snapGuides,
         addCanvasLayer,
         previewFilter,
         applyFilter,
         cancelPreview,
         copyToClipboard,
         pasteFromClipboard,
-        reorderLayers,
+        reorderLayers, 
     } = useLayers();
 
     const getContentCenter = useCallback(() => {
@@ -105,7 +104,6 @@ export function PageRedactor({ image }: PageRedactorProps) {
             addImageLayer(image, 0, 0);
         }
     }, [image, addImageLayer, fitToContent]);
-
 
     // ✅ Загрузка изображения — в центр вьюпорта
     const handleLoadImage = useCallback(() => {
@@ -296,7 +294,6 @@ export function PageRedactor({ image }: PageRedactorProps) {
                 onUpdate={setPreviewUrl}
                 onLayerDragMove={handleDragMove}
                 onLayerDragEnd={handleDragEnd}
-                snapGuides={snapGuides}
                 stageRef={stageRef}
                 penHandlers={{
                     onMouseDown: handleMouseDown,

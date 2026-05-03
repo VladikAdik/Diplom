@@ -85,8 +85,8 @@ export function SidebarTools({
                     <PenPanel
                         color={penColor}
                         width={penWidth}
-                        onColorChange={onPenColorChange ?? (() => {})}
-                        onWidthChange={onPenWidthChange ?? (() => {})}
+                        onColorChange={onPenColorChange ?? (() => { })}
+                        onWidthChange={onPenWidthChange ?? (() => { })}
                         onClose={close}
                         showColor={true}
                     />
@@ -98,8 +98,8 @@ export function SidebarTools({
                     <PenPanel
                         color="#ffffff"
                         width={penWidth}
-                        onColorChange={() => {}}
-                        onWidthChange={onPenWidthChange ?? (() => {})}
+                        onColorChange={() => { }}
+                        onWidthChange={onPenWidthChange ?? (() => { })}
                         onClose={close}
                         showColor={false}
                     />

@@ -220,7 +220,6 @@ export function useCropTool({
 
         const dataURL = canvas.toDataURL();
         const newImg = new Image();
-
         newImg.onload = () => {
             const newX = (layer.x ?? 0) + cropX;
             const newY = (layer.y ?? 0) + cropY;

@@ -59,18 +59,21 @@ export const LayerRenderer = memo(({
         };
     }, [layer.id, layerRefs]);
 
+    // Общий обработчик клика для всех типов
     const handleMouseDown = (e: Konva.KonvaEventObject<MouseEvent>) => {
-        if (e.evt.button === 1) return;
+        if (e.evt.button === 1) return
 
-        if (e.evt.button === 0 && selectedTool === 'select') {
-            if (canDrag) e.target.startDrag();
+        if (selectedTool === 'select') {
+            // Только в режиме выделения реагируем на клик
             e.cancelBubble = true;
             const isMultiSelect = e.evt.ctrlKey || e.evt.metaKey;
-            if (!isSelected || isMultiSelect) {
-                onSelect(layer.id, isMultiSelect);
-            }
+            const isAlreadySelected = isSelected;
+            if (isAlreadySelected && !isMultiSelect) return;
+            onSelect(layer.id, isMultiSelect);
             return;
         }
+
+        // В остальных режимах — ничего не делаем, событие проходит на Stage
     };
 
     const handleDragMove = (e: Konva.KonvaEventObject<DragEvent>) => {
@@ -80,7 +83,6 @@ export const LayerRenderer = memo(({
     const handleDragEnd = (e: Konva.KonvaEventObject<DragEvent>) => {
         onDragEnd(layer.id, e.target.x(), e.target.y());
     };
-
 
     // Рендерим содержимое в зависимости от типа
     const renderContent = () => {
@@ -137,17 +139,24 @@ export const LayerRenderer = memo(({
     return (
         <Group
             ref={(node) => {
-                if (node) layerRefs.current.set(layer.id, node);
+                if (node) {
+                    layerRefs.current.set(layer.id, node);
+                }
             }}
             x={layer.x ?? DEFAULT_LAYER_X}
             y={layer.y ?? DEFAULT_LAYER_Y}
-            width={layer.width}
+            width={layer.width}    // ← добавь
             height={layer.height}
             rotation={layer.rotation ?? 0}
             visible={layer.visible}
             opacity={layer.opacity}
             listening={!layer.locked}
-            draggable={false}
+            draggable={canDrag}
+            onDragStart={(e) => {
+                if (e.evt.button === 1) {
+                    e.target.stopDrag();
+                }
+            }}
             onMouseDown={handleMouseDown}
             onDragMove={handleDragMove}
             onDragEnd={handleDragEnd}

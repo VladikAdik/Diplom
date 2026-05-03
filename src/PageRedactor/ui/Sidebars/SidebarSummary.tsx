@@ -52,6 +52,8 @@ export function SidebarSummary({ imageUrl, layers }: SidebarSummaryProps) {
         updateRect();
     }, [imageUrl]);
 
+    
+
     if (!imageUrl) return null;
 
     // Вычисляем положение рамки относительно контейнера

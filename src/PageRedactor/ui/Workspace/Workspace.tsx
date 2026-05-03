@@ -3,10 +3,8 @@ import { Stage, Layer as KonvaLayer } from 'react-konva';
 import { useWorkspaceLogic } from '../../hooks/workspace';
 import { useSelectionRect } from '../../hooks/interaction';
 import { LayerRenderer } from './LayerRenderer';
-import { SnapGuides } from './SnapGuides';
 import { TransformControls } from './TransformControls';
 import { SelectionRectLayer } from './SelectionRectLayer';
-import type { SnapGuide } from '../../hooks/interaction';
 import type { Layer } from '../../types/Layer';
 import type Konva from 'konva';
 import { CropOverlay } from './CropOverlay';
@@ -23,7 +21,6 @@ interface WorkspaceProps {
     onTransformEnd: (transforms: TransformData[]) => void;
     onUpdate?: (url: string) => void;
     onLayerDragMove?: (id: string, x: number, y: number, width?: number, height?: number) => void;
-    snapGuides: SnapGuide[];
     stageRef: React.RefObject<Konva.Stage | null>;
     penHandlers?: {
         onMouseDown: () => void;
@@ -62,14 +59,20 @@ export function Workspace({
     onTransformEnd,
     onUpdate,
     onLayerDragMove,
-    snapGuides,
     cropHandlers,
     rectArea,
     freePoints,
     onEditText,
 }: WorkspaceProps) {
 
-    const { containerRef, stageSize, updatePreview } = useWorkspaceLogic({ onUpdate, stageRef });
+    const {
+        containerRef,
+        stageSize,
+        updatePreview,
+        handleMouseDown: panMouseDown,
+        handleMouseMove: panMouseMove,
+        handleMouseUp: panMouseUp,
+    } = useWorkspaceLogic({ onUpdate, stageRef });
 
     const { isSelecting, selectionRect } = useSelectionRect({
         stageRef,
@@ -79,8 +82,15 @@ export function Workspace({
         selectLayer: onSelectLayer,
     });
 
+    // Единый обработчик событий stage
     const handleStageMouseDown = useCallback((e: Konva.KonvaEventObject<MouseEvent>) => {
+        // Сначала панорамирование (проверяет кнопку внутри)
+        panMouseDown?.(e);
+
+        // Если панорамирование активно — не вызываем инструменты
+        // (isPanning проверяется внутри panMouseDown, но можно добавить проверку здесь)
         if (e.evt.button === 1) return;
+        if (e.evt.defaultPrevented) return;
 
         if (selectedTool === 'pen' || selectedTool === 'eraser') {
             penHandlers?.onMouseDown();
@@ -88,25 +98,29 @@ export function Workspace({
         if (selectedTool === 'cropRect' || selectedTool === 'cropFree') {
             cropHandlers?.onMouseDown();
         }
-    }, [selectedTool, penHandlers, cropHandlers]);
+    }, [selectedTool, penHandlers, cropHandlers, panMouseDown]);
 
-    const handleStageMouseMove = useCallback(() => {
+    const handleStageMouseMove = useCallback((e: Konva.KonvaEventObject<MouseEvent>) => {
+        panMouseMove?.(e);
+
         if (selectedTool === 'pen' || selectedTool === 'eraser') {
             penHandlers?.onMouseMove();
         }
         if (selectedTool === 'cropRect' || selectedTool === 'cropFree') {
             cropHandlers?.onMouseMove();
         }
-    }, [selectedTool, penHandlers, cropHandlers]);
+    }, [selectedTool, penHandlers, cropHandlers, panMouseMove]);
 
     const handleStageMouseUp = useCallback(() => {
+        panMouseUp?.();
+
         if (selectedTool === 'pen' || selectedTool === 'eraser') {
             penHandlers?.onMouseUp();
         }
         if (selectedTool === 'cropRect' || selectedTool === 'cropFree') {
             cropHandlers?.onMouseUp();
         }
-    }, [selectedTool, penHandlers, cropHandlers]);
+    }, [selectedTool, penHandlers, cropHandlers, panMouseUp]);
 
     const handleDragEnd = useCallback(
         (layerId: string, x: number, y: number) => {
@@ -119,9 +133,8 @@ export function Workspace({
     const handleTransformEnd = useCallback(
         (transforms: TransformData[]) => {
             onTransformEnd(transforms);
-            setTimeout(() => updatePreview(), 0);
         },
-        [onTransformEnd, updatePreview]
+        [onTransformEnd]
     );
 
     const showTransformer = selectedTool === 'select';
@@ -163,11 +176,6 @@ export function Workspace({
                         layerRefs={layerRefs}
                         layers={layers}
                         onTransformEnd={handleTransformEnd}
-                    />
-                    <SnapGuides
-                        guides={snapGuides}
-                        stageWidth={stageSize.width}
-                        stageHeight={stageSize.height}
                     />
                 </KonvaLayer>
 
