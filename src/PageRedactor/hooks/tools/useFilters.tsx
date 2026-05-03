@@ -1,7 +1,7 @@
 import { useCallback, useRef } from 'react';
 import type { Layer } from '../../types/Layer';
 
-export type FilterType = 'none' | 'grayscale' | 'sepia' | 'invert' | 'blur' | 'brightness' | 'contrast' | 'saturate';
+export type FilterType = 'none' | 'grayscale' | 'sepia' | 'invert' | 'blur' | 'brightness' | 'contrast' | 'saturate' | 'opacity';
 
 function getCSSFilter(type: string, value: number): string {
     switch (type) {
@@ -12,6 +12,7 @@ function getCSSFilter(type: string, value: number): string {
         case 'brightness': return `brightness(${value + 100}%)`;
         case 'contrast': return `contrast(${value + 100}%)`;
         case 'saturate': return `saturate(${value + 100}%)`;
+        case 'opacity': return `opacity(${100 - value}%)`;
         default: return 'none';
     }
 }

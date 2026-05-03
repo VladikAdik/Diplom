@@ -18,7 +18,7 @@ export function CropOverlay({ isCropping, cropShape, rectArea, freePoints, targe
     const layerY = targetLayer.y ?? 0;
     
     return (
-        <KonvaLayer>
+        <KonvaLayer name="crop-overlay">
             {/* Затемнение всей сцены */}
             <Rect x={-5000} y={-5000} width={10000} height={10000} fill="rgba(0,0,0,0.5)" listening={false} />
             

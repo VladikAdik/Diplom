@@ -1,4 +1,4 @@
-import { memo } from 'react';
+import { memo, useState, useCallback } from 'react';
 import type { Layer } from '../../types/Layer';
 import styles from './SidebarLayers.module.css';
 
@@ -10,7 +10,8 @@ interface SidebarLayersProps {
     onToggleLock?: (id: string) => void;
     onRemoveLayer?: (id: string) => void;
     onAddLayer?: () => void;
-    previewUrl?: string;  // ← добавили
+    previewUrl?: string;
+    onReorderLayers?: (layers: Layer[]) => void;
 }
 
 const LayerItem = memo(({
@@ -78,7 +79,57 @@ export function SidebarLayers({
     onRemoveLayer,
     onAddLayer,
     previewUrl,
+    onReorderLayers,
 }: SidebarLayersProps) {
+
+    const [dragIndex, setDragIndex] = useState<number | null>(null);
+    const [overIndex, setOverIndex] = useState<number | null>(null);
+
+    const handleDragStart = useCallback((e: React.DragEvent, index: number) => {
+        setDragIndex(index);
+        e.dataTransfer.effectAllowed = 'move';
+        e.dataTransfer.setData('text/plain', String(index));
+    }, []);
+
+    const handleDragOver = useCallback((e: React.DragEvent, index: number) => {
+        e.preventDefault();
+        e.dataTransfer.dropEffect = 'move';
+        setOverIndex(index);
+    }, []);
+
+    const handleDrop = useCallback((e: React.DragEvent, dropIndex: number) => {
+        e.preventDefault();
+        if (dragIndex === null || dragIndex === dropIndex) {
+            setDragIndex(null);
+            setOverIndex(null);
+            return;
+        }
+
+        const sortedLayers = [...layers].sort((a, b) => a.zIndex - b.zIndex);
+        const draggedLayer = sortedLayers[dragIndex];
+
+        // Удаляем перетаскиваемый слой из старой позиции
+        const withoutDragged = sortedLayers.filter(l => l.id !== draggedLayer.id);
+
+        // Вставляем в новую позицию
+        const reordered = [
+            ...withoutDragged.slice(0, dropIndex),
+            draggedLayer,
+            ...withoutDragged.slice(dropIndex),
+        ];
+
+        // Отдаём новый порядок — useLayers сам проставит zIndex
+        onReorderLayers?.(reordered);
+
+        setDragIndex(null);
+        setOverIndex(null);
+    }, [dragIndex, layers, onReorderLayers]);
+
+    const handleDragEnd = useCallback(() => {
+        setDragIndex(null);
+        setOverIndex(null);
+    }, []);
+
     return (
         <div className={styles.panel}>
             {/* Превью */}
@@ -111,16 +162,29 @@ export function SidebarLayers({
                 ) : (
                     [...layers]
                         .sort((a, b) => a.zIndex - b.zIndex)
-                        .map((layer) => (
-                            <LayerItem
+                        .map((layer, index) => (
+                            <div
                                 key={layer.id}
-                                layer={layer}
-                                isSelected={selectedLayerIds.has(layer.id)}
-                                onSelect={onSelectLayer || (() => {})}
-                                onToggleVisibility={onToggleVisibility || (() => {})}
-                                onToggleLock={onToggleLock || (() => {})}
-                                onRemove={onRemoveLayer || (() => {})}
-                            />
+                                draggable
+                                onDragStart={(e) => handleDragStart(e, index)}
+                                onDragOver={(e) => handleDragOver(e, index)}
+                                onDrop={(e) => handleDrop(e, index)}
+                                onDragEnd={handleDragEnd}
+                                style={{
+                                    opacity: dragIndex === index ? 0.5 : 1,
+                                    borderTop: overIndex === index ? '2px solid #2196F3' : 'none',
+                                }}
+                            >
+                                <LayerItem
+                                    key={layer.id}
+                                    layer={layer}
+                                    isSelected={selectedLayerIds.has(layer.id)}
+                                    onSelect={onSelectLayer || (() => { })}
+                                    onToggleVisibility={onToggleVisibility || (() => { })}
+                                    onToggleLock={onToggleLock || (() => { })}
+                                    onRemove={onRemoveLayer || (() => { })}
+                                />
+                            </div>
                         ))
                 )}
             </div>

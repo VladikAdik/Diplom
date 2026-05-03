@@ -51,6 +51,9 @@ export function PageRedactor({ image }: PageRedactorProps) {
         previewFilter,
         applyFilter,
         cancelPreview,
+        copyToClipboard,
+        pasteFromClipboard,
+        reorderLayers, 
     } = useLayers();
 
     const getContentCenter = useCallback(() => {
@@ -116,11 +119,21 @@ export function PageRedactor({ image }: PageRedactorProps) {
             if (e.code === 'KeyV') { setSelectedTool('select'); return; }
             if (e.code === 'KeyP') { setSelectedTool('pen'); return; }
             if (e.code === 'KeyE') { setSelectedTool('eraser'); return; }
+            if ((e.ctrlKey || e.metaKey) && e.code === 'KeyC') {
+                e.preventDefault();
+                copyToClipboard(selectedLayerIds);
+                return;
+            }
+            if ((e.ctrlKey || e.metaKey) && e.code === 'KeyV') {
+                e.preventDefault();
+                pasteFromClipboard();
+                return;
+            }
         };
 
         window.addEventListener('keydown', handleKeyDown);
         return () => window.removeEventListener('keydown', handleKeyDown);
-    }, [undo, redo, selectAll, clearSelection, selectedLayerIds, removeLayer]);
+    }, [undo, redo, selectAll, clearSelection, selectedLayerIds, removeLayer, copyToClipboard, pasteFromClipboard]);
 
     // ✅ Загрузка изображения — в центр вьюпорта
     const handleLoadImage = useCallback(() => {
@@ -229,6 +242,9 @@ export function PageRedactor({ image }: PageRedactorProps) {
         const transformers = stage.find('Transformer') as Konva.Transformer[];
         transformers.forEach(t => t.visible(false));
 
+        const cropOverlay = stage.findOne('.crop-overlay') as Konva.Layer | null;  // ← по имени
+        if (cropOverlay) cropOverlay.visible(false);
+
         const dataURL = stage.toDataURL({
             mimeType: 'image/png',
             pixelRatio: 0.5,
@@ -240,6 +256,7 @@ export function PageRedactor({ image }: PageRedactorProps) {
 
         // ✅ Возвращаем видимость
         transformers.forEach(t => t.visible(true));
+        if (cropOverlay) cropOverlay.visible(true);
         stage.batchDraw();
 
         setPreviewUrl(dataURL);
@@ -338,6 +355,7 @@ export function PageRedactor({ image }: PageRedactorProps) {
                     onToggleLock={toggleLock}
                     onRemoveLayer={removeLayer}
                     onAddLayer={addCanvasLayer}
+                    onReorderLayers={reorderLayers}
                 />
             </div>
         </div>

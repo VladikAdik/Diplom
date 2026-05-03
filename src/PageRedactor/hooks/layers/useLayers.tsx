@@ -1,5 +1,5 @@
 import { useState, useCallback, useRef, useEffect } from 'react';
-import type { Layer, ShapeConfig, TextConfig } from '../../types/Layer';
+import type { Layer, ShapeConfig, TextConfig, LayerData, LayerRuntime } from '../../types/Layer';
 import type Konva from 'konva';
 import { generateId, createImageLayerData, createShapeLayerData, createTextLayerData, duplicateLayerData } from './createLayers';
 import { toSnapshot, fromSnapshot } from './layerToHistory';
@@ -9,10 +9,12 @@ import { useHistory } from '../workspace';
 import { useSnapMove, type SnapGuide } from '../interaction';
 import { useFilters } from '../tools';
 import { getContentBounds } from '../../utils/getContentBounds';
+import { flushSync } from 'react-dom';
 
 export function useLayers() {
     const [layers, setLayers] = useState<Layer[]>([]);
     const layerRefs = useRef<Map<string, Konva.Group>>(new Map());
+    const clipboardRef = useRef<Layer[] | null>(null);
     const [snapGuides, setSnapGuides] = useState<SnapGuide[]>([]);
 
     const { saveState, undo: undoHistory, redo: redoHistory, canUndo, canRedo, clearHistory } = useHistory();
@@ -141,14 +143,81 @@ export function useLayers() {
             runtime: {},
         };
 
-        mutate(prev => [
-            ...prev,
-            { ...newLayer, id: newId, zIndex: prev.length }
-        ]);
-
-        // ✅ Выделяем после обновления состояния
-        setTimeout(() => selectLayer(newId), 0);
+        mutate(prev => {
+            const updated = [...prev, { ...newLayer, id: newId, zIndex: prev.length }];
+            // Колбэк для выделения после обновления состояния
+            queueMicrotask(() => selectLayer(newId));
+            return updated;
+        });
     }, [mutate, selectLayer, layers]);
+
+    const reorderLayers = useCallback((newOrder: Layer[]) => {
+    mutate(() => 
+        newOrder.map((layer, index) => ({
+            ...layer,
+            zIndex: index,
+        }))
+    );
+}, [mutate]);
+
+    const recreateRuntime = (data: LayerData): LayerRuntime | undefined => {
+        const src = (data as { src?: string }).src;
+        if (!src) return undefined;
+
+        const img = new Image();
+        img.src = src;
+        return { imageElement: img };
+    };
+
+    const copyToClipboard = useCallback((ids: Set<string>) => {
+        const toCopy = layers
+            .filter(l => ids.has(l.id))
+            .map(toSnapshot)  // сериализуем для безопасного копирования
+            .sort((a, b) => a.zIndex - b.zIndex);
+
+        if (toCopy.length > 0) {
+            clipboardRef.current = toCopy;
+        }
+    }, [layers]);
+
+    const pasteFromClipboard = useCallback(() => {
+        const clipboard = clipboardRef.current;
+        if (!clipboard || clipboard.length === 0) return;
+
+        const offsetX = 30;
+        const offsetY = 30;
+
+        const newLayers = clipboard.map((original, i) => {
+            const id = generateId();
+            const data = { ...original.data };
+
+            const runtime = original.type === 'image' || original.type === 'canvas'
+                ? recreateRuntime(data)
+                : undefined;
+
+            return {
+                ...original,
+                id,
+                zIndex: layers.length + i,
+                x: (original.x ?? 0) + offsetX,
+                y: (original.y ?? 0) + offsetY,
+                name: `${original.name} (копия)`,
+                locked: false,
+                data,
+                runtime,
+            } as Layer;
+        });
+
+        // Обновляем слои синхронно, чтобы selectLayer сработал после рендера
+        flushSync(() => {
+            mutate(prev => [...prev, ...newLayers]);
+        });
+
+        // Теперь выделяем
+        newLayers.forEach(l => selectLayer(l.id, true));
+    }, [layers, mutate, selectLayer]);
+
+
 
     // ============================================================
     // Операции без сохранения в историю
@@ -249,6 +318,9 @@ export function useLayers() {
         updateLayerPosition,
         updateMultipleLayers,
         moveLayer,
+        copyToClipboard,
+        pasteFromClipboard,
+        reorderLayers,
 
         snapGuides,
         handleDragMove,

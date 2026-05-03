@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import styles from './FilterPanel.module.css';
 
-export type FilterType = 'none' | 'grayscale' | 'sepia' | 'invert' | 'blur' | 'brightness' | 'contrast' | 'saturate';
+export type FilterType = 'none' | 'grayscale' | 'sepia' | 'invert' | 'blur' | 'brightness' | 'contrast' | 'saturate' | 'opacity';
 
 interface FilterPanelProps {
     currentFilter: FilterType;
@@ -30,6 +30,7 @@ export function FilterPanel({
         { type: 'brightness', label: 'Яркость', min: -100, max: 100, step: 1, unit: '' },
         { type: 'contrast', label: 'Контраст', min: -100, max: 100, step: 1, unit: '' },
         { type: 'saturate', label: 'Насыщенность', min: -100, max: 100, step: 1, unit: '' },
+        { type: 'opacity', label: 'Прозрачность', min: 0, max: 100, step: 1, unit: '%' },
     ];
 
     return (

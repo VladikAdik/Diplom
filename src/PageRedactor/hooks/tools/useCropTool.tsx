@@ -220,32 +220,39 @@ export function useCropTool({
 
         const dataURL = canvas.toDataURL();
         const newImg = new Image();
-        newImg.src = dataURL;
 
-        // === ГЛАВНОЕ: сохраняем позицию вырезанной области ===
-        const newX = (layer.x ?? 0) + cropX;
-        const newY = (layer.y ?? 0) + cropY;
+        newImg.onload = () => {
+            const newX = (layer.x ?? 0) + cropX;
+            const newY = (layer.y ?? 0) + cropY;
 
-        updateLayer(layer.id, {
-            type: 'canvas',
-            x: newX,   // ← новая позиция
-            y: newY,   // ← новая позиция
-            width: cropW,
-            height: cropH,
-            data: {
+            updateLayer(layer.id, {
                 type: 'canvas',
-                src: dataURL,
+                x: newX,
+                y: newY,
                 width: cropW,
                 height: cropH,
-            },
-            runtime: { imageElement: newImg },
-        });
+                data: {
+                    type: 'canvas',
+                    src: dataURL,
+                    width: cropW,
+                    height: cropH,
+                },
+                runtime: { imageElement: newImg },
+            });
 
-        cancelCrop();
-        setTimeout(() => {
-            selectLayer?.(layer.id);
-            onCropComplete?.();
-        }, 0);
+            // Выделяем только ПОСЛЕ обновления
+            setTimeout(() => {
+                selectLayer?.(layer.id);
+                onCropComplete?.();
+            }, 0);
+        };
+
+        newImg.onerror = () => {
+            cancelCrop();
+        };
+
+        newImg.src = dataURL;
+        cancelCrop(); // сбрасываем UI сразу
     }, [getTargetLayer, cropShape, rectArea, freePoints, updateLayer, cancelCrop, onCropComplete, selectLayer]);
 
     return {
